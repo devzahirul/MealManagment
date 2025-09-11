@@ -34,9 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.ugo.mhews.mealmanage.data.CostRepository
-import com.ugo.mhews.mealmanage.data.UserRepository
-import com.ugo.mhews.mealmanage.data.MealRepository
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -50,143 +49,12 @@ import java.time.format.TextStyle
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    repository: CostRepository = CostRepository()
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val currency = remember { NumberFormat.getCurrencyInstance() }
     val monthFormatter = remember { DateTimeFormatter.ofPattern("MMMM yyyy") }
-
-    var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
+    val state by viewModel.state.collectAsState()
     var showMonthPicker by remember { mutableStateOf(false) }
-    val zone = ZoneId.systemDefault()
-
-    val userRepo = remember { UserRepository() }
-    val mealRepo = remember { MealRepository() }
-
-    var monthTotal by remember { mutableStateOf<Double?>(null) }
-    var monthLoading by remember { mutableStateOf(true) }
-    var monthErr by remember { mutableStateOf<String?>(null) }
-    var monthMealsTotal by remember { mutableStateOf<Int?>(null) }
-
-    data class UserTotal(val uid: String, val name: String, val total: Double)
-    var userTotals by remember { mutableStateOf<List<UserTotal>>(emptyList()) }
-    var byUserLoading by remember { mutableStateOf(true) }
-    var byUserErr by remember { mutableStateOf<String?>(null) }
-
-    var selectedUser: UserTotal? by remember { mutableStateOf(null) }
-    var userCosts by remember { mutableStateOf<List<com.ugo.mhews.mealmanage.data.CostEntry>>(emptyList()) }
-    var userCostsLoading by remember { mutableStateOf(false) }
-    var userCostsErr by remember { mutableStateOf<String?>(null) }
-    var byUserMeals by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-
-    // Today's meals (all users)
-    var todayMealsLoading by remember { mutableStateOf(true) }
-    var todayMealsErr by remember { mutableStateOf<String?>(null) }
-    var todayMealsTotal by remember { mutableStateOf(0) }
-    var todayMealsTop by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
-
-    fun loadMonth() {
-        monthLoading = true
-        monthErr = null
-        monthMealsTotal = null
-        val ym = selectedMonth
-        val startMs = ym.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val endMs = ym.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val startDate = ym.atDay(1)
-        val endDate = ym.plusMonths(1).atDay(1)
-
-        repository.getTotalCostForRange(startMs, endMs, null) { sum, err ->
-            if (err != null) {
-                monthErr = err.localizedMessage ?: "Unknown error"
-                monthTotal = null
-            } else monthTotal = sum
-
-            // After cost loads, load meals
-            mealRepo.getTotalMealsForRange(startDate, endDate) { totalMeals, mErr ->
-                if (mErr != null) {
-                    monthErr = monthErr ?: mErr.localizedMessage ?: "Unknown error"
-                    monthMealsTotal = null
-                } else monthMealsTotal = totalMeals
-                monthLoading = false
-            }
-        }
-    }
-
-    fun refreshAll() { loadMonth() }
-
-    fun loadTodayMeals() {
-        todayMealsLoading = true
-        todayMealsErr = null
-        val date = LocalDate.now()
-        mealRepo.getAllMealsForDate(date) { list, err ->
-            if (err != null) {
-                todayMealsLoading = false
-                todayMealsTotal = 0
-                todayMealsTop = emptyList()
-                todayMealsErr = err.localizedMessage ?: "Unknown error"
-            } else {
-                val total = list.sumOf { it.count }
-                val uids = list.map { it.uid }.toSet()
-                userRepo.getNames(uids) { names, nErr ->
-                    todayMealsLoading = false
-                    if (nErr != null) todayMealsErr = nErr.localizedMessage
-                    val top = list.map { m ->
-                        val name = names?.get(m.uid).orEmpty().ifBlank { "User ${m.uid.take(6)}" }
-                        name to m.count
-                    }.sortedByDescending { it.second }
-                    todayMealsTotal = total
-                    todayMealsTop = top
-                }
-            }
-        }
-    }
-
-    fun loadByUser() {
-        byUserLoading = true
-        byUserErr = null
-        val ym = selectedMonth
-        val start = ym.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = ym.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        repository.getTotalsByUserForRange(start, end) { sums, err ->
-            if (err != null) {
-                byUserLoading = false
-                userTotals = emptyList()
-                byUserErr = err.localizedMessage ?: "Unknown error"
-            } else {
-                val uids = sums.keys
-                var remaining = 2
-                fun done() { remaining -= 1; if (remaining == 0) byUserLoading = false }
-
-                userRepo.getNames(uids.toSet()) { names, nErr ->
-                    if (nErr != null) {
-                        byUserErr = nErr.localizedMessage ?: "Unknown error"
-                    }
-                    val list = sums.entries.map { (uid, total) ->
-                        val name = names?.get(uid).orEmpty()
-                            .ifBlank { "User ${uid.take(6)}" }
-                        UserTotal(uid, name, total)
-                    }.sortedByDescending { it.total }
-                    userTotals = list
-                    done()
-                }
-
-                val startDate = Instant.ofEpochMilli(start).atZone(zone).toLocalDate()
-                val endDate = Instant.ofEpochMilli(end).atZone(zone).toLocalDate()
-                mealRepo.getTotalMealsForRange(startDate, endDate) { _, _ -> /* ensure index warm-up */ }
-                mealRepo.getTotalMealsForRange(startDate, endDate) { _, _ -> /* noop */ }
-                mealRepo.getTotalMealsForRange(startDate, endDate) { _, _ -> /* noop */ }
-                // fetch meals by user
-                mealRepo.getMealsByUserForRange(startDate, endDate) { mealsMap, mErr ->
-                    if (mErr != null) {
-                        byUserErr = byUserErr ?: mErr.localizedMessage ?: "Unknown error"
-                        byUserMeals = emptyMap()
-                    } else byUserMeals = mealsMap
-                    done()
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) { refreshAll(); loadByUser(); loadTodayMeals() }
 
     Column(
         modifier = modifier
@@ -198,7 +66,7 @@ fun HomeScreen(
         // Header with current/selected month and selector
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                text = monthFormatter.format(selectedMonth),
+                text = monthFormatter.format(state.selectedMonth),
                 style = MaterialTheme.typography.headlineSmall
             )
             TextButton(onClick = { showMonthPicker = true }) { Text("Select Month") }
@@ -206,17 +74,17 @@ fun HomeScreen(
 
         StatCard(
             title = "This Month Total",
-            subtitle = monthFormatter.format(selectedMonth),
-            amount = monthTotal,
-            loading = monthLoading,
-            error = monthErr,
+            subtitle = monthFormatter.format(state.selectedMonth),
+            amount = state.monthTotal,
+            loading = state.monthLoading,
+            error = state.monthErr,
             currency = currency,
-            onRefresh = { loadMonth() },
+            onRefresh = { viewModel.refreshAll() },
             extraContent = {
-                val meals = monthMealsTotal
-                if (!monthLoading && monthErr == null) {
+                val meals = state.monthMealsTotal
+                if (!state.monthLoading && state.monthErr == null) {
                     Text("Total Meals: ${meals ?: 0}")
-                    val cost = monthTotal ?: 0.0
+                    val cost = state.monthTotal ?: 0.0
                     val rate = if ((meals ?: 0) > 0) cost / (meals ?: 1) else null
                     Text(
                         text = "Meal Rate: " + (rate?.let { currency.format(it) } ?: "N/A"),
@@ -238,12 +106,12 @@ fun HomeScreen(
             ) {
                 Text("Today's Meals", style = MaterialTheme.typography.titleMedium)
                 when {
-                    todayMealsLoading -> Text("Loading…", style = MaterialTheme.typography.bodyMedium)
-                    todayMealsErr != null -> Text("Error: $todayMealsErr", color = MaterialTheme.colorScheme.error)
+                    state.todayMealsLoading -> Text("Loading…", style = MaterialTheme.typography.bodyMedium)
+                    state.todayMealsErr != null -> Text("Error: ${state.todayMealsErr}", color = MaterialTheme.colorScheme.error)
                     else -> {
-                        Text("Total: $todayMealsTotal", style = MaterialTheme.typography.bodyLarge)
+                        Text("Total: ${state.todayMealsTotal}", style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.height(4.dp))
-                        todayMealsTop.forEach { (name, cnt) ->
+                        state.todayMealsTop.forEach { (name, cnt) ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(name.ifBlank { "Unknown" })
                                 Text(cnt.toString())
@@ -252,7 +120,7 @@ fun HomeScreen(
                     }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { loadTodayMeals() }) { Text("Refresh") }
+                    TextButton(onClick = { viewModel.loadTodayMeals() }) { Text("Refresh") }
                 }
             }
         }
@@ -269,39 +137,26 @@ fun HomeScreen(
             ) {
                 Text("This Month by User", style = MaterialTheme.typography.titleMedium)
                 when {
-                    byUserLoading -> Text("Loading…", style = MaterialTheme.typography.bodyMedium)
-                    byUserErr != null -> Text("Error: $byUserErr", color = MaterialTheme.colorScheme.error)
-                    userTotals.isEmpty() -> Text("No data", style = MaterialTheme.typography.bodyMedium)
+                    state.byUserLoading -> Text("Loading…", style = MaterialTheme.typography.bodyMedium)
+                    state.byUserErr != null -> Text("Error: ${state.byUserErr}", color = MaterialTheme.colorScheme.error)
+                    state.userTotals.isEmpty() -> Text("No data", style = MaterialTheme.typography.bodyMedium)
                     else -> {
-                        userTotals.forEachIndexed { index, item ->
+                        state.userTotals.forEachIndexed { index, item ->
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        selectedUser = item
-                                        val ym = selectedMonth
-                                        val start = ym.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-                                        val end = ym.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-                                        userCostsLoading = true
-                                        userCostsErr = null
-                                        repository.getCostsForUserRange(item.uid, start, end) { list, err ->
-                                            userCostsLoading = false
-                                            if (err != null) {
-                                                userCosts = emptyList()
-                                                userCostsErr = err.localizedMessage ?: "Unknown error"
-                                            } else {
-                                                userCosts = list
-                                            }
-                                        }
+                                        viewModel.selectUser(item)
+                                        viewModel.loadCostsForSelectedUser()
                                     }
                             ) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(item.name.ifBlank { "Unknown" })
                                     Text(currency.format(item.total))
                                 }
-                                val userMeals = byUserMeals[item.uid] ?: 0
-                                val totalMeals = monthMealsTotal ?: 0
-                                val rate = if (!monthLoading && monthErr == null && totalMeals > 0) (monthTotal ?: 0.0) / totalMeals else null
+                                val userMeals = state.byUserMeals[item.uid] ?: 0
+                                val totalMeals = state.monthMealsTotal ?: 0
+                                val rate = if (!state.monthLoading && state.monthErr == null && totalMeals > 0) (state.monthTotal ?: 0.0) / totalMeals else null
                                 val expected = rate?.times(userMeals)
                                 val balance = expected?.let { item.total - it }
                                 Text(
@@ -325,7 +180,7 @@ fun HomeScreen(
                                         color = balColor
                                     )
                                 }
-                                if (index < userTotals.size - 1) {
+                                if (index < state.userTotals.size - 1) {
                                     Divider(modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                                 }
                             }
@@ -333,16 +188,13 @@ fun HomeScreen(
                     }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = {
-                        // reload
-                        loadByUser()
-                    }) { Text("Refresh") }
+                    TextButton(onClick = { viewModel.loadByUser() }) { Text("Refresh") }
                 }
             }
         }
 
         if (showMonthPicker) {
-            var tempYear by remember { mutableStateOf(selectedMonth.year) }
+            var tempYear by remember { mutableStateOf(state.selectedMonth.year) }
             AlertDialog(
                 onDismissRequest = { showMonthPicker = false },
                 confirmButton = {
@@ -369,9 +221,8 @@ fun HomeScreen(
                                     val index = row * 3 + col
                                     val m = months[index]
                                     TextButton(onClick = {
-                                        selectedMonth = YearMonth.of(tempYear, m)
+                                        viewModel.setMonth(YearMonth.of(tempYear, m))
                                         showMonthPicker = false
-                                        loadMonth(); loadByUser()
                                     }, modifier = Modifier.weight(1f)) {
                                         Text(m.getDisplayName(TextStyle.SHORT, Locale.getDefault()))
                                     }
@@ -384,30 +235,30 @@ fun HomeScreen(
         }
 
         // Detail dialog for selected user's costs in the month
-        if (selectedUser != null) {
-            val user = selectedUser!!
+        if (state.selectedUser != null) {
+            val user = state.selectedUser!!
             AlertDialog(
-                onDismissRequest = { selectedUser = null },
+                onDismissRequest = { viewModel.selectUser(null) },
                 confirmButton = {
-                    TextButton(onClick = { selectedUser = null }) { Text("Close") }
+                    TextButton(onClick = { viewModel.selectUser(null) }) { Text("Close") }
                 },
-                title = { Text("${user.name} - ${monthFormatter.format(selectedMonth)}") },
+                title = { Text("${user.name} - ${monthFormatter.format(state.selectedMonth)}") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (userCostsLoading) {
+                        if (state.userCostsLoading) {
                             Text("Loading…", style = MaterialTheme.typography.bodyMedium)
-                        } else if (userCostsErr != null) {
-                            Text("Error: $userCostsErr", color = MaterialTheme.colorScheme.error)
-                        } else if (userCosts.isEmpty()) {
+                        } else if (state.userCostsErr != null) {
+                            Text("Error: ${state.userCostsErr}", color = MaterialTheme.colorScheme.error)
+                        } else if (state.userCosts.isEmpty()) {
                             Text("No entries")
                         } else {
                             val dtFmt = DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm")
                             LazyColumn {
-                                items(userCosts) { e ->
+                                items(state.userCosts) { e ->
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Text(e.name, style = MaterialTheme.typography.bodyLarge)
-                                            val dt = Instant.ofEpochMilli(e.timestampMillis).atZone(zone).toLocalDateTime()
+                                            val dt = Instant.ofEpochMilli(e.timestampMillis).atZone(state.zone).toLocalDateTime()
                                             Text(dt.format(dtFmt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                         Text(currency.format(e.cost))
