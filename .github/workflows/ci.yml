@@ -32,7 +32,7 @@ jobs:
           yes | sdkmanager --licenses
 
       - name: Build and run unit tests
-        run: ./gradlew clean :domain:test :core:test :data:test :app:test --stacktrace --warning-mode all
+        run: ./gradlew clean :domain:test :core:test :data:testDebugUnitTest :app:testDebugUnitTest --stacktrace --warning-mode all
 
       - name: Generate coverage (Kover)
         run: ./gradlew koverXmlReport koverHtmlReport --stacktrace --warning-mode all
