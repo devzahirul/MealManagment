@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Example production rules (with Firebase Auth):
+    // - Only authenticated users can read/write
+    // - Writes are limited to known schema paths
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Allow reads to all collections for signed-in users
+    match /{document=**} {
+      allow read: if isSignedIn();
+    }
+
+    // AddCost collection: allow create/read/update/delete only for signed-in users
+    match /AddCost/{docId} {
+      allow create, read, update, delete: if isSignedIn();
+    }
+  }
+}
+

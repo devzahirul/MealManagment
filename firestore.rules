@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // User profiles
+    match /Users/{userId} {
+      // Allow all signed-in users to read names/emails for display
+      allow read: if isSignedIn();
+      // Only the owner can create/update/delete their own profile
+      allow create, update, delete: if isOwner(userId);
+    }
+
+    // Costs
+    match /AddCost/{docId} {
+      // Any signed-in user can read to allow shared dashboards
+      allow read: if isSignedIn();
+
+      // Create: must belong to the authenticated user and include expected fields
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.cost is number
+        && request.resource.data.timestamp is number
+        && request.resource.data.name is string;
+
+      // Update/Delete: only the owner of the document may modify
+      allow update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Meals stored under Meals/{uid}/days/{YYYY-MM-DD}
+    match /Meals/{userId}/days/{dayId} {
+      // Signed-in users can read for dashboards/aggregations
+      allow read: if isSignedIn();
+
+      // Only the owner can write their own daily meal count
+      allow create, update, delete: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.date is string
+        && request.resource.data.date == dayId
+        && request.resource.data.count is number;
+    }
+
+    // Fallback: allow read of any other docs for authenticated users (dashboards)
+    match /{document=**} {
+      allow read: if isSignedIn();
+    }
+  }
+}
