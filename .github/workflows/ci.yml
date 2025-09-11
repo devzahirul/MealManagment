@@ -50,8 +50,11 @@ jobs:
         if: always()
         uses: mikepenz/action-junit-report@v4
         with:
-          report_paths: '**/build/test-results/**/*.xml'
-          require_tests: true
+          report_paths: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/testDebugUnitTest/*.xml
+            **/build/test-results/testReleaseUnitTest/*.xml
+          require_tests: false
 
       - name: Upload coverage report
         if: always()
