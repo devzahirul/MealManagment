@@ -14,7 +14,7 @@ plugins {
 // You can tighten thresholds as coverage grows.
 koverReport {
     defaults {
-        xml { onCheck.set(false) }
-        html { onCheck.set(false) }
+        xml { onCheck = false }
+        html { onCheck = false }
     }
 }
