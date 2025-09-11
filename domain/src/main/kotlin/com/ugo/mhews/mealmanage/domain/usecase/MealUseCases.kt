@@ -22,3 +22,14 @@ class SetMealForDate(
     suspend operator fun invoke(date: LocalDate, count: Int): Result<Unit> = repo.setMealForDate(date, count)
 }
 
+class GetMealForDate(
+    private val repo: MealRepository
+) {
+    suspend operator fun invoke(date: LocalDate) = repo.getMealForDate(date)
+}
+
+class GetAllMealsForDate(
+    private val repo: MealRepository
+) {
+    suspend operator fun invoke(date: LocalDate) = repo.getAllMealsForDate(date)
+}
