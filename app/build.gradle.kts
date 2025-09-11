@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -86,4 +87,5 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
