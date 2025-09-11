@@ -7,5 +7,14 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.jvm) apply false
     alias(libs.plugins.hilt.android) apply false
     alias(libs.plugins.kotlin.kapt) apply false
-    alias(libs.plugins.kover) apply false
+    alias(libs.plugins.kover)
+}
+
+// Configure Kover aggregated reports and basic verification.
+// You can tighten thresholds as coverage grows.
+koverReport {
+    defaults {
+        xml { onCheck.set(false) }
+        html { onCheck.set(false) }
+    }
 }

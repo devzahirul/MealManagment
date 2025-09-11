@@ -1,6 +1,7 @@
 package com.ugo.mhews.mealmanage.ui
 
 import com.ugo.mhews.mealmanage.domain.Result
+import com.ugo.mhews.mealmanage.MainDispatcherRule
 import com.ugo.mhews.mealmanage.domain.model.UserMeal
 import com.ugo.mhews.mealmanage.domain.model.Meal
 import com.ugo.mhews.mealmanage.domain.repository.MealRepository
@@ -14,8 +15,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.Rule
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -27,6 +30,8 @@ private class FakeUserRepo : UserRepository {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MealViewModelTest {
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
     @Test
     fun observeMonth_thenOpenFutureDate_loadsCount() = runTest {
         val flow = MutableSharedFlow<Result<Map<LocalDate, Int>>>(replay = 1)
@@ -50,6 +55,7 @@ class MealViewModelTest {
         // Open today (future or today): should set count to 5
         val today = LocalDate.now()
         vm.openDate(today)
+        advanceUntilIdle()
         val s = vm.state.first()
         assertEquals(5, s.count)
     }
