@@ -18,8 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.ugo.mhews.mealmanage.data.CostEntry
-import com.ugo.mhews.mealmanage.data.CostRepository
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -32,7 +31,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CostAddScreen(
     modifier: Modifier = Modifier,
-    repository: CostRepository = CostRepository()
+    viewModel: CostAddViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -51,7 +50,7 @@ fun CostAddScreen(
     )
     var showTimePicker by remember { mutableStateOf(false) }
 
-    var isSubmitting by remember { mutableStateOf(false) }
+    val vmState by viewModel.state.collectAsState()
 
     val formattedDateTime by derivedStateOf {
         val dateMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
@@ -118,25 +117,15 @@ fun CostAddScreen(
                         return@Button
                     }
 
-                    isSubmitting = true
-                    repository.addCost(
-                        CostEntry(name = name.trim(), cost = cost, timestampMillis = epochMs)
-                    ) { ok, err ->
-                        isSubmitting = false
-                        if (ok) {
-                            name = ""
-                            costText = ""
-                            // date/time keep as selected
-                            scope.launch { snackbarHostState.showSnackbar("Saved successfully") }
-                        } else {
-                            scope.launch { snackbarHostState.showSnackbar("Failed: ${err?.localizedMessage ?: "unknown error"}") }
-                        }
+                    viewModel.submit(name.trim(), cost, epochMs) {
+                        name = ""
+                        costText = ""
                     }
                 },
-                enabled = !isSubmitting,
+                enabled = !vmState.isSubmitting,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (isSubmitting) {
+                if (vmState.isSubmitting) {
                     CircularProgressIndicator(modifier = Modifier.height(20.dp))
                 } else {
                     Text("Submit")
@@ -172,6 +161,14 @@ fun CostAddScreen(
                     TimePicker(state = timeState)
                 }
             )
+        }
+    }
+
+    // Snackbar from ViewModel
+    LaunchedEffect(vmState.snackbar) {
+        vmState.snackbar?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeSnackbar()
         }
     }
 }
