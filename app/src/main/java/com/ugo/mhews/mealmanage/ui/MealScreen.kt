@@ -34,7 +34,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,8 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.ugo.mhews.mealmanage.data.MealRepository
-import com.ugo.mhews.mealmanage.data.UserRepository
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -58,6 +55,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 
 private const val TAG = "MealScreen"
@@ -66,81 +65,19 @@ private const val TAG = "MealScreen"
 @Composable
 fun MealScreen(
     modifier: Modifier = Modifier,
-    repository: MealRepository = MealRepository()
+    viewModel: MealViewModel = hiltViewModel()
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    var month by remember { mutableStateOf(YearMonth.now()) }
-    val today = LocalDate.now()
+    val state by viewModel.state.collectAsState()
+
+    val month = state.month
+    val today = state.today
     val firstDow = WeekFields.of(Locale.getDefault()).firstDayOfWeek
     val monthLabelFmt = remember { DateTimeFormatter.ofPattern("MMMM yyyy") }
 
-    var showEditor by remember { mutableStateOf<LocalDate?>(null) }
-    var showDetails by remember { mutableStateOf<LocalDate?>(null) }
-    var count by remember { mutableStateOf(0) }
-    var loadingCount by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
-
     fun canEdit(date: LocalDate) = !date.isBefore(today)
-
-    val userRepo = remember { UserRepository() }
-
-    data class DetailItem(val uid: String, val name: String, val count: Int)
-    var detailsLoading by remember { mutableStateOf(false) }
-    var detailsErr by remember { mutableStateOf<String?>(null) }
-    var details by remember { mutableStateOf<List<DetailItem>>(emptyList()) }
-
-    // Meals of current user for the visible month
-    var monthMeals by remember { mutableStateOf<Map<LocalDate, Int>>(emptyMap()) }
-
-    fun loadMonthMeals(target: YearMonth = month) {
-        val start = target.atDay(1)
-        val end = target.plusMonths(1).atDay(1)
-        repository.getMealsForUserRange(start, end) { map, _ ->
-            monthMeals = map
-        }
-    }
-
-    fun openEditor(date: LocalDate) {
-        if (!canEdit(date)) {
-            // For past dates, show details for all users on that day
-            showDetails = date
-            detailsLoading = true
-            detailsErr = null
-            repository.getAllMealsForDate(date) { list, err ->
-                if (err != null) {
-                    Log.e(TAG, "getAllMealsForDate failed for $date", err)
-                    detailsLoading = false
-                    details = emptyList()
-                    detailsErr = err.localizedMessage ?: "Failed to load"
-                } else {
-                    val uids = list.map { it.uid }.toSet()
-                    userRepo.getNames(uids) { names, nErr ->
-                        detailsLoading = false
-                        if (nErr != null) {
-                            Log.e(TAG, "getNames failed for $date", nErr)
-                            detailsErr = nErr.localizedMessage
-                        }
-                        details = list.map { m ->
-                            DetailItem(m.uid, names?.get(m.uid).orEmpty().ifBlank { "User ${m.uid.take(6)}" }, m.count)
-                        }.sortedByDescending { it.count }
-                    }
-                }
-            }
-            return
-        }
-        showEditor = date
-        loadingCount = true
-        repository.getMealForDate(date) { entry, err ->
-            loadingCount = false
-            count = entry?.count ?: 0
-            err?.let {
-                Log.e(TAG, "getMealForDate failed for $date", it)
-                scope.launch { snackbar.showSnackbar(it.localizedMessage ?: "Load failed") }
-            }
-        }
-    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -150,19 +87,11 @@ fun MealScreen(
                 title = { Text("Meals") },
                 actions = {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = {
-                            val newMonth = month.minusMonths(1)
-                            month = newMonth
-                            loadMonthMeals(newMonth)
-                        }) {
+                        IconButton(onClick = { viewModel.onPrevMonth() }) {
                             Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Prev month")
                         }
                         Text(month.format(monthLabelFmt), style = MaterialTheme.typography.titleMedium)
-                        IconButton(onClick = {
-                            val newMonth = month.plusMonths(1)
-                            month = newMonth
-                            loadMonthMeals(newMonth)
-                        }) {
+                        IconButton(onClick = { viewModel.onNextMonth() }) {
                             Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Next month")
                         }
                     }
@@ -170,9 +99,6 @@ fun MealScreen(
             )
         }
     ) { inner ->
-        // Ensure we always fetch month data immediately on first render and when month changes
-        LaunchedEffect(month) { loadMonthMeals(month) }
-
         Column(
             modifier = Modifier
                 .padding(inner)
@@ -202,7 +128,7 @@ fun MealScreen(
                         val isPast = date.isBefore(today)
                         val clickable = true
                         val textColor = if (inMonth) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        val count = monthMeals[date] ?: 0
+                        val count = state.monthMeals[date] ?: 0
                         val hasMeal = count > 0
                         val bg = when {
                             hasMeal && !isPast -> Color(0xFFFFF59D) // Yellow 200 for current/future with meals
@@ -217,7 +143,7 @@ fun MealScreen(
                                 .height(44.dp)
                                 .background(bg, shape = CircleShape)
                                 .border(width = 1.dp, color = MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape)
-                                .then(if (clickable) Modifier.clickable { openEditor(date) } else Modifier),
+                                .then(if (clickable) Modifier.clickable { viewModel.openDate(date) } else Modifier),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(date.dayOfMonth.toString(), color = textColor)
@@ -243,56 +169,41 @@ fun MealScreen(
             }
         }
 
-        if (showEditor != null) {
-            val date = showEditor!!
+        if (state.showEditorDate != null) {
+            val date = state.showEditorDate!!
             AlertDialog(
-                onDismissRequest = { if (!saving) showEditor = null },
+                onDismissRequest = { viewModel.dismissEditor() },
                 title = { Text("Set meals for ${date}") },
                 text = {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { if (!loadingCount && count > 0) count -= 1 }) { Text("-") }
-                        Text(if (loadingCount) "…" else count.toString(), style = MaterialTheme.typography.headlineSmall)
-                        OutlinedButton(onClick = { if (!loadingCount) count += 1 }) { Text("+") }
+                        OutlinedButton(onClick = { viewModel.decCount() }) { Text("-") }
+                        Text(if (state.loadingCount) "…" else state.count.toString(), style = MaterialTheme.typography.headlineSmall)
+                        OutlinedButton(onClick = { viewModel.incCount() }) { Text("+") }
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
-                        saving = true
-                        repository.setMealForDate(date, count) { ok, err ->
-                            saving = false
-                            if (ok) {
-                                Log.i(TAG, "Saved meal for $date = $count")
-                                showEditor = null
-                                scope.launch { snackbar.showSnackbar("Saved") }
-                                // refresh month meals to update calendar colors
-                                loadMonthMeals()
-                            } else {
-                                Log.e(TAG, "setMealForDate failed for $date (count=$count)", err)
-                                scope.launch { snackbar.showSnackbar(err?.localizedMessage ?: "Save failed") }
-                            }
-                        }
-                    }, enabled = !saving) { Text("Save") }
+                    Button(onClick = { viewModel.saveCount() }, enabled = !state.saving) { Text("Save") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { if (!saving) showEditor = null }) { Text("Cancel") }
+                    TextButton(onClick = { viewModel.dismissEditor() }) { Text("Cancel") }
                 }
             )
         }
 
-        if (showDetails != null) {
-            val date = showDetails!!
+        if (state.showDetailsDate != null) {
+            val date = state.showDetailsDate!!
             AlertDialog(
-                onDismissRequest = { showDetails = null },
-                confirmButton = { TextButton(onClick = { showDetails = null }) { Text("Close") } },
+                onDismissRequest = { viewModel.dismissDetails() },
+                confirmButton = { TextButton(onClick = { viewModel.dismissDetails() }) { Text("Close") } },
                 title = { Text("Meals on $date") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         when {
-                            detailsLoading -> Text("Loading…")
-                            detailsErr != null -> Text("Error: $detailsErr", color = MaterialTheme.colorScheme.error)
-                            details.isEmpty() -> Text("No meals recorded")
+                            state.detailsLoading -> Text("Loading…")
+                            state.detailsError != null -> Text("Error: ${state.detailsError}", color = MaterialTheme.colorScheme.error)
+                            state.details.isEmpty() -> Text("No meals recorded")
                             else -> LazyColumn {
-                                items(details) { item ->
+                                items(state.details) { item ->
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(item.name)
                                         Text(item.count.toString())
@@ -305,26 +216,13 @@ fun MealScreen(
             )
         }
     }
-    // Real-time listener for month meals; updates calendar instantly on changes
-    DisposableEffect(month) {
-        val start = month.atDay(1)
-        val end = month.plusMonths(1).atDay(1)
-        val reg = repository.observeMealsForUserRange(start, end) { map, err ->
-            if (err != null) {
-                // Log and fall back to a one-shot fetch so UI still updates
-                Log.e(TAG, "observeMealsForUserRange failed for $start..$end", err)
-                repository.getMealsForUserRange(start, end) { fallback, _ ->
-                    monthMeals = fallback
-                }
-                // Let user know realtime updates are temporarily unavailable
-                scope.launch {
-                    snackbar.showSnackbar(err.localizedMessage ?: "Live updates unavailable; loaded once")
-                }
-            } else if (map != null) {
-                monthMeals = map
-            }
+    // Snackbar from ViewModel messages
+    LaunchedEffect(state.snackbarMessage) {
+        val msg = state.snackbarMessage
+        if (msg != null) {
+            snackbar.showSnackbar(msg)
+            viewModel.consumeSnackbar()
         }
-        onDispose { reg?.remove() }
     }
 }
 

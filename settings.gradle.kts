@@ -21,3 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "MealManage"
 include(":app")
+include(":domain")
+include(":data")
+include(":core")

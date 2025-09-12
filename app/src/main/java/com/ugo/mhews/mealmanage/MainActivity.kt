@@ -30,7 +30,9 @@ import com.ugo.mhews.mealmanage.ui.LoginScreen
 import com.ugo.mhews.mealmanage.ui.ProfileScreen
 import com.ugo.mhews.mealmanage.ui.MealScreen
 import com.google.firebase.auth.FirebaseAuth
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
