@@ -44,19 +44,21 @@ android {
     buildFeatures {
         compose = true
     }
-kover {
-    reports {
-        xml {
-            isEnabled = true
-        }
-    }
-}   
-composeOptions {
+    composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+// Kover configuration moved to root level - this fixes the error
+kover {
+    reports {
+        xml {
+            isEnabled = true
         }
     }
 }
