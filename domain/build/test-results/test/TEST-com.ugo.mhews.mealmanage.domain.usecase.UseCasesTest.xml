@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2025-09-12T10:13:29" hostname="lynkto-1s-Mac-mini.local" time="0.016">
+  <properties/>
+  <testcase name="getMealsByUserForRange_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.002"/>
+  <testcase name="observeMealsForMonth_emits" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.001"/>
+  <testcase name="getTotalMealsForRange_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.003"/>
+  <testcase name="getMealForDate_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.003"/>
+  <testcase name="setMealForDate_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.002"/>
+  <testcase name="getAllMealsForDate_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.002"/>
+  <testcase name="addCost_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.001"/>
+  <testcase name="getTotalsByUserForRange_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.0"/>
+  <testcase name="getCostsForUserRange_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.0"/>
+  <testcase name="getTotalCostForRange_calls_repo" classname="com.ugo.mhews.mealmanage.domain.usecase.UseCasesTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

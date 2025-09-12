@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.ugo.mhews.mealmanage.core.ProvidersTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2025-09-12T10:13:27" hostname="lynkto-1s-Mac-mini.local" time="0.286">
+  <properties/>
+  <testcase name="defaultDispatchers_match" classname="com.ugo.mhews.mealmanage.core.ProvidersTest" time="0.28"/>
+  <testcase name="systemDateProvider_with_fixed_clock" classname="com.ugo.mhews.mealmanage.core.ProvidersTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

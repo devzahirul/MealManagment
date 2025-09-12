@@ -1,0 +1,9 @@
+/Users/lynkto_1/AndroidStudioProjects/MealManage/domain/build/kover/bin-reports/test.ic
+false
+false
+true
+false
+-exclude
+android\..*
+com\.android\..*
+jdk\.internal\..*

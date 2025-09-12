@@ -2,22 +2,23 @@ package com.ugo.mhews.mealmanage.data.cost
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.ugo.mhews.mealmanage.core.DispatchersProvider
+import com.ugo.mhews.mealmanage.core.di.IoDispatcher
 import com.ugo.mhews.mealmanage.data.common.toDomainError
 import com.ugo.mhews.mealmanage.domain.Result
 import com.ugo.mhews.mealmanage.domain.model.CostItem
 import com.ugo.mhews.mealmanage.domain.model.UserId
 import com.ugo.mhews.mealmanage.domain.repository.CostRepository
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class CostRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val dispatchers: DispatchersProvider
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : CostRepository {
-    override suspend fun addCost(entry: CostItem): Result<Unit> = withContext(dispatchers.io) {
+    override suspend fun addCost(entry: CostItem): Result<Unit> = withContext(ioDispatcher) {
         val user = auth.currentUser
         val data = hashMapOf(
             "name" to entry.name,
@@ -33,7 +34,7 @@ class CostRepositoryImpl @Inject constructor(
         } catch (t: Throwable) { Result.Error(t.toDomainError()) }
     }
 
-    override suspend fun getTotalCostForRange(startMs: Long, endMs: Long, uid: UserId?): Result<Double> = withContext(dispatchers.io) {
+    override suspend fun getTotalCostForRange(startMs: Long, endMs: Long, uid: UserId?): Result<Double> = withContext(ioDispatcher) {
         try {
             var query = db.collection("AddCost")
                 .whereGreaterThanOrEqualTo("timestamp", startMs)
@@ -45,7 +46,7 @@ class CostRepositoryImpl @Inject constructor(
         } catch (t: Throwable) { Result.Error(t.toDomainError()) }
     }
 
-    override suspend fun getTotalsByUserForRange(startMs: Long, endMs: Long): Result<Map<UserId, Double>> = withContext(dispatchers.io) {
+    override suspend fun getTotalsByUserForRange(startMs: Long, endMs: Long): Result<Map<UserId, Double>> = withContext(ioDispatcher) {
         try {
             val snap = db.collection("AddCost")
                 .whereGreaterThanOrEqualTo("timestamp", startMs)
@@ -63,7 +64,7 @@ class CostRepositoryImpl @Inject constructor(
         } catch (t: Throwable) { Result.Error(t.toDomainError()) }
     }
 
-    override suspend fun getCostsForUserRange(uid: UserId, startMs: Long, endMs: Long): Result<List<CostItem>> = withContext(dispatchers.io) {
+    override suspend fun getCostsForUserRange(uid: UserId, startMs: Long, endMs: Long): Result<List<CostItem>> = withContext(ioDispatcher) {
         try {
             val snap = db.collection("AddCost")
                 .whereEqualTo("uid", uid)

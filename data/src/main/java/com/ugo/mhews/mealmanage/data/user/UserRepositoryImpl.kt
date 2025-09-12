@@ -11,17 +11,18 @@ import com.ugo.mhews.mealmanage.domain.model.UserProfile
 import com.ugo.mhews.mealmanage.domain.repository.UserRepository
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
-import com.ugo.mhews.mealmanage.core.DispatchersProvider
+import com.ugo.mhews.mealmanage.core.di.IoDispatcher
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineDispatcher
 
 class UserRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val dispatchers: DispatchersProvider
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : UserRepository {
     private fun users() = db.collection("Users")
 
-    override suspend fun getCurrentProfile(): Result<UserProfile> = withContext(dispatchers.io) {
+    override suspend fun getCurrentProfile(): Result<UserProfile> = withContext(ioDispatcher) {
         val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
         try {
             val doc = users().document(user.uid).get().await()
@@ -33,7 +34,7 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateCurrentName(name: String): Result<Unit> = withContext(dispatchers.io) {
+    override suspend fun updateCurrentName(name: String): Result<Unit> = withContext(ioDispatcher) {
         val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
         val data = hashMapOf(
             "name" to name,
@@ -47,7 +48,7 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getNames(uids: Set<UserId>): Result<Map<UserId, String>> = withContext(dispatchers.io) {
+    override suspend fun getNames(uids: Set<UserId>): Result<Map<UserId, String>> = withContext(ioDispatcher) {
         if (uids.isEmpty()) return@withContext Result.Success(emptyMap())
         try {
             val result = mutableMapOf<UserId, String>()

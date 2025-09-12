@@ -16,19 +16,20 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import javax.inject.Inject
-import com.ugo.mhews.mealmanage.core.DispatchersProvider
+import com.ugo.mhews.mealmanage.core.di.IoDispatcher
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 class MealRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val dispatchers: DispatchersProvider
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : MealRepository {
 
     private fun dayDoc(uid: String, date: LocalDate) =
         db.collection("Meals").document(uid).collection("days").document(date.toString())
 
-    override suspend fun getMealForDate(date: LocalDate): Result<Meal> = withContext(dispatchers.io) {
+    override suspend fun getMealForDate(date: LocalDate): Result<Meal> = withContext(ioDispatcher) {
         val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
         try {
             val snap = dayDoc(user.uid, date).get().await()
@@ -39,7 +40,7 @@ class MealRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setMealForDate(date: LocalDate, count: Int): Result<Unit> = withContext(dispatchers.io) {
+    override suspend fun setMealForDate(date: LocalDate, count: Int): Result<Unit> = withContext(ioDispatcher) {
         val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
         val data = hashMapOf(
             "count" to count,
@@ -87,7 +88,7 @@ class MealRepositoryImpl @Inject constructor(
         awaitClose { reg.remove() }
     }
 
-    override suspend fun getAllMealsForDate(date: LocalDate): Result<List<UserMeal>> = withContext(dispatchers.io) {
+    override suspend fun getAllMealsForDate(date: LocalDate): Result<List<UserMeal>> = withContext(ioDispatcher) {
         val dateStr = date.toString()
         try {
             val snap = db.collectionGroup("days")
