@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.ugo.mhews.mealmanage.domain.ResultTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2025-09-12T10:13:28" hostname="lynkto-1s-Mac-mini.local" time="0.225">
-  <properties/>
-  <testcase name="success_holds_value" classname="com.ugo.mhews.mealmanage.domain.ResultTest" time="0.006"/>
-  <testcase name="domain_errors_construct" classname="com.ugo.mhews.mealmanage.domain.ResultTest" time="0.218"/>
-  <testcase name="error_holds_domain_error" classname="com.ugo.mhews.mealmanage.domain.ResultTest" time="0.001"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
