@@ -1,6 +1,7 @@
 package com.ugo.mhews.mealmanage.ui
 
 import com.ugo.mhews.mealmanage.domain.Result
+import com.ugo.mhews.mealmanage.core.DateProvider
 import com.ugo.mhews.mealmanage.MainDispatcherRule
 import com.ugo.mhews.mealmanage.domain.model.UserMeal
 import com.ugo.mhews.mealmanage.domain.model.Meal
@@ -20,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.Rule
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.YearMonth
 
 private class FakeUserRepo : UserRepository {
@@ -49,7 +51,10 @@ class MealViewModelTest {
             getMealForDate = GetMealForDate(fakeRepo),
             setMealForDate = SetMealForDate(fakeRepo),
             getAllMealsForDate = GetAllMealsForDate(fakeRepo),
-            userRepository = FakeUserRepo()
+            userRepository = FakeUserRepo(),
+            dateProvider = object : DateProvider {
+                override fun today(zoneId: ZoneId): LocalDate = LocalDate.now(zoneId)
+            }
         )
 
         // Open today (future or today): should set count to 5

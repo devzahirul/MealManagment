@@ -16,5 +16,23 @@ koverReport {
     defaults {
         xml { onCheck = false }
         html { onCheck = false }
+        // Exclude pure UI and DI wiring from coverage to focus on business logic
+        filters {
+            excludes {
+                // App Compose screens and activity
+                classes(
+                    "com.ugo.mhews.mealmanage.MainActivity",
+                    "com.ugo.mhews.mealmanage.ui.*ScreenKt",
+                    "com.ugo.mhews.mealmanage.ui.theme.*Kt"
+                )
+                // DI modules (wiring only)
+                classes(
+                    "com.ugo.mhews.mealmanage.di.*",
+                    "com.ugo.mhews.mealmanage.data.di.*"
+                )
+                // Generated Hilt classes
+                packages("hilt_aggregated_deps", "dagger.hilt.internal.generated")
+            }
+        }
     }
 }

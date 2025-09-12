@@ -16,18 +16,21 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import javax.inject.Inject
+import com.ugo.mhews.mealmanage.core.DispatchersProvider
+import kotlinx.coroutines.withContext
 
 class MealRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val dispatchers: DispatchersProvider
 ) : MealRepository {
 
     private fun dayDoc(uid: String, date: LocalDate) =
         db.collection("Meals").document(uid).collection("days").document(date.toString())
 
-    override suspend fun getMealForDate(date: LocalDate): Result<Meal> {
-        val user = auth.currentUser ?: return Result.Error(DomainError.Auth("Not signed in"))
-        return try {
+    override suspend fun getMealForDate(date: LocalDate): Result<Meal> = withContext(dispatchers.io) {
+        val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
+        try {
             val snap = dayDoc(user.uid, date).get().await()
             val cnt = (snap.get("count") as? Number)?.toInt() ?: 0
             Result.Success(Meal(date, cnt))
@@ -36,14 +39,14 @@ class MealRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setMealForDate(date: LocalDate, count: Int): Result<Unit> {
-        val user = auth.currentUser ?: return Result.Error(DomainError.Auth("Not signed in"))
+    override suspend fun setMealForDate(date: LocalDate, count: Int): Result<Unit> = withContext(dispatchers.io) {
+        val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
         val data = hashMapOf(
             "count" to count,
             "date" to date.toString(),
             "uid" to user.uid
         )
-        return try {
+        try {
             dayDoc(user.uid, date).set(data).await()
             Result.Success(Unit)
         } catch (t: Throwable) {
@@ -84,9 +87,9 @@ class MealRepositoryImpl @Inject constructor(
         awaitClose { reg.remove() }
     }
 
-    override suspend fun getAllMealsForDate(date: LocalDate): Result<List<UserMeal>> {
+    override suspend fun getAllMealsForDate(date: LocalDate): Result<List<UserMeal>> = withContext(dispatchers.io) {
         val dateStr = date.toString()
-        return try {
+        try {
             val snap = db.collectionGroup("days")
                 .whereEqualTo("date", dateStr)
                 .get().await()

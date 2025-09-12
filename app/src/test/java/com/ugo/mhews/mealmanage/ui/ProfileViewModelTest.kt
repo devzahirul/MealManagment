@@ -12,9 +12,9 @@ import org.junit.Rule
 import org.junit.Test
 
 private class FakeUsersRepo : UserRepository {
-    override suspend fun getCurrentProfile() = Result.Success(UserProfile("u1", "Test", "t@example.com"))
-    override suspend fun updateCurrentName(name: String) = Result.Success(Unit)
-    override suspend fun getNames(uids: Set<String>) = Result.Success(emptyMap())
+    override suspend fun getCurrentProfile(): Result<UserProfile> = Result.Success(UserProfile("u1", "Test", "t@example.com"))
+    override suspend fun updateCurrentName(name: String): Result<Unit> = Result.Success(Unit)
+    override suspend fun getNames(uids: Set<String>): Result<Map<String, String>> = Result.Success(emptyMap())
 }
 
 private class FakeAuthRepo : AuthRepository {

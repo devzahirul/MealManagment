@@ -12,10 +12,10 @@ import org.junit.Rule
 import org.junit.Test
 
 private class FakeCostRepo : CostRepository {
-    override suspend fun addCost(entry: CostItem) = Result.Success(Unit)
-    override suspend fun getTotalCostForRange(startMs: Long, endMs: Long, uid: String?) = Result.Success(0.0)
-    override suspend fun getTotalsByUserForRange(startMs: Long, endMs: Long) = Result.Success(emptyMap())
-    override suspend fun getCostsForUserRange(uid: String, startMs: Long, endMs: Long) = Result.Success(emptyList())
+    override suspend fun addCost(entry: CostItem): Result<Unit> = Result.Success(Unit)
+    override suspend fun getTotalCostForRange(startMs: Long, endMs: Long, uid: String?): Result<Double> = Result.Success(0.0)
+    override suspend fun getTotalsByUserForRange(startMs: Long, endMs: Long): Result<Map<String, Double>> = Result.Success(emptyMap())
+    override suspend fun getCostsForUserRange(uid: String, startMs: Long, endMs: Long): Result<List<CostItem>> = Result.Success(emptyList())
 }
 
 class CostAddViewModelTest {

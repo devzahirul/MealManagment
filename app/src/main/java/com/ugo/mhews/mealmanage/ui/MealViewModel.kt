@@ -3,6 +3,7 @@ package com.ugo.mhews.mealmanage.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ugo.mhews.mealmanage.domain.Result
+import com.ugo.mhews.mealmanage.core.DateProvider
 import com.ugo.mhews.mealmanage.domain.repository.UserRepository
 import com.ugo.mhews.mealmanage.domain.usecase.GetAllMealsForDate
 import com.ugo.mhews.mealmanage.domain.usecase.GetMealForDate
@@ -25,7 +26,8 @@ class MealViewModel @Inject constructor(
     private val getMealForDate: GetMealForDate,
     private val setMealForDate: SetMealForDate,
     private val getAllMealsForDate: GetAllMealsForDate,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val dateProvider: DateProvider
 ) : ViewModel() {
 
     data class DetailItem(val uid: String, val name: String, val count: Int)
@@ -53,6 +55,9 @@ class MealViewModel @Inject constructor(
     private var monthJob: Job? = null
 
     init {
+        // Initialize date state based on core DateProvider
+        val today = dateProvider.today()
+        _state.update { it.copy(today = today, month = YearMonth.from(today)) }
         // Start observing the current month on init
         observeCurrentMonth()
     }
@@ -145,4 +150,3 @@ class MealViewModel @Inject constructor(
 
     fun consumeSnackbar() { _state.update { it.copy(snackbarMessage = null) } }
 }
-

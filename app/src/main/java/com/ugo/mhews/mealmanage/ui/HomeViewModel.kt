@@ -3,6 +3,7 @@ package com.ugo.mhews.mealmanage.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ugo.mhews.mealmanage.domain.Result
+import com.ugo.mhews.mealmanage.core.DateProvider
 import com.ugo.mhews.mealmanage.domain.repository.UserRepository
 import com.ugo.mhews.mealmanage.domain.model.CostItem
 import com.ugo.mhews.mealmanage.domain.usecase.GetAllMealsForDate
@@ -32,7 +33,8 @@ class HomeViewModel @Inject constructor(
     private val getMealsByUserForRange: GetMealsByUserForRange,
     private val getCostsForUserRange: GetCostsForUserRange,
     private val getAllMealsForDate: GetAllMealsForDate,
-    private val users: UserRepository
+    private val users: UserRepository,
+    private val dateProvider: DateProvider
 ) : ViewModel() {
 
     data class UserTotal(val uid: String, val name: String, val total: Double)
@@ -68,6 +70,9 @@ class HomeViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
+        // Initialize the selected month based on provided date provider
+        val today = dateProvider.today()
+        _state.update { it.copy(selectedMonth = YearMonth.from(today)) }
         refreshAll()
         loadByUser()
         loadTodayMeals()
@@ -107,7 +112,7 @@ class HomeViewModel @Inject constructor(
 
     fun loadTodayMeals() {
         _state.update { it.copy(todayMealsLoading = true, todayMealsErr = null, todayMealsTotal = 0, todayMealsTop = emptyList()) }
-        val date = LocalDate.now()
+        val date = dateProvider.today(_state.value.zone)
         viewModelScope.launch {
             when (val listRes = getAllMealsForDate(date)) {
                 is Result.Error -> _state.update { it.copy(todayMealsLoading = false, todayMealsErr = listRes.error.message ?: "Unknown error") }
