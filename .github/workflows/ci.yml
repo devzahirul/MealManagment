@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,13 +38,10 @@ jobs:
 
       - name: Build and run unit tests
         run: |
-          # Pre-compile app to ensure Hilt modules are aggregated
-          ./gradlew :app:assembleDebug --stacktrace --warning-mode all --no-configuration-cache
-          # Run the same tests as before
-          ./gradlew clean :domain:test :core:test :data:testDebugUnitTest :app:testDebugUnitTest --stacktrace --warning-mode all --no-configuration-cache
+          ./gradlew :domain:test :core:test :data:testDebugUnitTest :app:testDebugUnitTest --stacktrace --warning-mode all
 
       - name: Generate coverage (Kover)
-        run: ./gradlew koverXmlReport koverHtmlReport --stacktrace --warning-mode all
+        run: ./gradlew koverXmlReport --stacktrace --warning-mode all
 
       - name: Upload unit test reports
         if: always()
@@ -51,7 +53,8 @@ jobs:
               **/build/test-results/**
 
       - name: JUnit Report Summary
-        if: always()
+        if: >
+          always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: mikepenz/action-junit-report@v4
         with:
           report_paths: |
@@ -59,12 +62,11 @@ jobs:
             **/build/test-results/testDebugUnitTest/*.xml
             **/build/test-results/testReleaseUnitTest/*.xml
           require_tests: false
+          include_passed: true
 
-      - name: Upload coverage report
+      - name: Upload coverage report (XML)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-kover
-          path: |
-            build/reports/kover/xml/report.xml
-            build/reports/kover/html
+          name: coverage-kover-xml
+          path: build/reports/kover/xml/report.xml
