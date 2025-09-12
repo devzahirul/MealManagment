@@ -91,3 +91,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// KAPT options for better error reporting in CI
+kapt {
+    correctErrorTypes = true
+}

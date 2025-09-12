@@ -32,7 +32,11 @@ jobs:
           yes | sdkmanager --licenses
 
       - name: Build and run unit tests
-        run: ./gradlew clean :domain:test :core:test :data:testDebugUnitTest :app:testDebugUnitTest --stacktrace --warning-mode all
+        run: |
+          # Pre-compile app to ensure Hilt modules are aggregated
+          ./gradlew :app:assembleDebug --stacktrace --warning-mode all --no-configuration-cache
+          # Run the same tests as before
+          ./gradlew clean :domain:test :core:test :data:testDebugUnitTest :app:testDebugUnitTest --stacktrace --warning-mode all --no-configuration-cache
 
       - name: Generate coverage (Kover)
         run: ./gradlew koverXmlReport koverHtmlReport --stacktrace --warning-mode all

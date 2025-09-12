@@ -49,3 +49,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
 }
+
+// KAPT options for better error reporting in CI
+kapt {
+    correctErrorTypes = true
+}
