@@ -214,3 +214,4 @@ Coverage scope and filters:
 ## Recent Changes
 
 - Calendar badges reliability: proactive month load, resilient realtime listener, corrected Firestore queries for collection‑group ranges.
+- please feel free to contribution 
