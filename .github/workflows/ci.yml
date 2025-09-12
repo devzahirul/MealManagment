@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 permissions:
-  contents: read
+  contents: write
   checks: write
   pull-requests: write
 
@@ -43,6 +43,48 @@ jobs:
       - name: Generate coverage (Kover)
         run: ./gradlew koverXmlReport --stacktrace --warning-mode all
 
+      - name: Compute coverage percent
+        if: always()
+        run: |
+          file=build/reports/kover/xml/report.xml
+          if [ ! -f "$file" ]; then
+            echo "COVERAGE=0" >> $GITHUB_ENV
+            echo "COV_COLOR=orange" >> $GITHUB_ENV
+            exit 0
+          fi
+          line=$(grep -o '<counter type="LINE"[^>]*/>' "$file" | head -n1)
+          if [ -z "$line" ]; then
+            line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$file" | head -n1)
+          fi
+          missed=$(echo "$line" | sed -E 's/.*missed="([0-9]+)".*/\1/')
+          covered=$(echo "$line" | sed -E 's/.*covered="([0-9]+)".*/\1/')
+          total=$(( ${missed:-0} + ${covered:-0} ))
+          if [ "$total" -le 0 ]; then pct=0; else pct=$(( 100 * ${covered:-0} / $total )); fi
+          if [ "$pct" -ge 90 ]; then color=brightgreen; elif [ "$pct" -ge 75 ]; then color=yellow; else color=orange; fi
+          echo "COVERAGE=$pct" >> $GITHUB_ENV
+          echo "COV_COLOR=$color" >> $GITHUB_ENV
+
+      - name: Compute per-module coverage
+        if: always()
+        run: |
+          parse_cov() {
+            f="$1"; var="$2"; varc="$3"
+            if [ ! -f "$f" ]; then echo "$var=0" >> $GITHUB_ENV; echo "$varc=orange" >> $GITHUB_ENV; return; fi
+            line=$(grep -o '<counter type="LINE"[^>]*/>' "$f" | head -n1)
+            if [ -z "$line" ]; then line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$f" | head -n1); fi
+            missed=$(echo "$line" | sed -E 's/.*missed="([0-9]+)".*/\1/')
+            covered=$(echo "$line" | sed -E 's/.*covered="([0-9]+)".*/\1/')
+            total=$(( ${missed:-0} + ${covered:-0} ))
+            if [ "$total" -le 0 ]; then pct=0; else pct=$(( 100 * ${covered:-0} / $total )); fi
+            if [ "$pct" -ge 90 ]; then color=brightgreen; elif [ "$pct" -ge 75 ]; then color=yellow; else color=orange; fi
+            echo "$var=$pct" >> $GITHUB_ENV
+            echo "$varc=$color" >> $GITHUB_ENV
+          }
+          parse_cov domain/build/reports/kover/xml/report.xml DOMAIN_COV DOMAIN_COLOR
+          parse_cov core/build/reports/kover/xml/report.xml CORE_COV CORE_COLOR
+          parse_cov data/build/reports/kover/xml/report.xml DATA_COV DATA_COLOR
+          parse_cov app/build/reports/kover/xml/report.xml APP_COV APP_COLOR
+
       - name: Upload unit test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,12 +99,109 @@ jobs:
           always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: mikepenz/action-junit-report@v4
         with:
+          token: ${{ github.token }}
           report_paths: |
             **/build/test-results/test/*.xml
             **/build/test-results/testDebugUnitTest/*.xml
             **/build/test-results/testReleaseUnitTest/*.xml
           require_tests: false
           include_passed: true
+
+      - name: Publish Unit Test Results (Job Summary)
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/testDebugUnitTest/*.xml
+            **/build/test-results/testReleaseUnitTest/*.xml
+          check_run: false
+          comment_mode: off
+          job_summary: true
+          fail_on: nothing
+
+      - name: Compute test totals
+        if: always()
+        id: testsum
+        run: |
+          shopt -s nullglob
+          files=(
+            **/build/test-results/test/*.xml
+            **/build/test-results/testDebugUnitTest/*.xml
+            **/build/test-results/testReleaseUnitTest/*.xml
+          )
+          total=0; failures=0; errors=0; skipped=0
+          for f in "${files[@]}"; do
+            t=$(grep -o 'tests="[0-9]\+' "$f" | head -n1 | cut -d'"' -f2); total=$((total + ${t:-0}))
+            fa=$(grep -o 'failures="[0-9]\+' "$f" | head -n1 | cut -d'"' -f2); failures=$((failures + ${fa:-0}))
+            er=$(grep -o 'errors="[0-9]\+' "$f" | head -n1 | cut -d'"' -f2); errors=$((errors + ${er:-0}))
+            sk=$(grep -o 'skipped="[0-9]\+' "$f" | head -n1 | cut -d'"' -f2); skipped=$((skipped + ${sk:-0}))
+          done
+          passed=$((total - failures - errors - skipped))
+          echo "TOTAL=$total" >> $GITHUB_ENV
+          echo "PASSED=$passed" >> $GITHUB_ENV
+          echo "FAILED=$((failures + errors))" >> $GITHUB_ENV
+
+      - name: Generate tests badge
+        if: github.ref == 'refs/heads/main'
+        uses: emibcn/badge-action@v2
+        with:
+          label: tests
+          status: "${{ env.PASSED }}/${{ env.TOTAL }}"
+          color: ${{ env.FAILED == '0' && 'brightgreen' || 'orange' }}
+          path: badges/tests.svg
+
+      - name: Generate coverage badge
+        if: github.ref == 'refs/heads/main'
+        uses: emibcn/badge-action@v2
+        with:
+          label: coverage
+          status: "${{ env.COVERAGE }}%"
+          color: ${{ env.COV_COLOR }}
+          path: badges/coverage.svg
+
+      - name: Coverage badge (domain)
+        if: github.ref == 'refs/heads/main'
+        uses: emibcn/badge-action@v2
+        with:
+          label: domain
+          status: "${{ env.DOMAIN_COV }}%"
+          color: ${{ env.DOMAIN_COLOR }}
+          path: badges/coverage-domain.svg
+
+      - name: Coverage badge (core)
+        if: github.ref == 'refs/heads/main'
+        uses: emibcn/badge-action@v2
+        with:
+          label: core
+          status: "${{ env.CORE_COV }}%"
+          color: ${{ env.CORE_COLOR }}
+          path: badges/coverage-core.svg
+
+      - name: Coverage badge (data)
+        if: github.ref == 'refs/heads/main'
+        uses: emibcn/badge-action@v2
+        with:
+          label: data
+          status: "${{ env.DATA_COV }}%"
+          color: ${{ env.DATA_COLOR }}
+          path: badges/coverage-data.svg
+
+      - name: Coverage badge (app)
+        if: github.ref == 'refs/heads/main'
+        uses: emibcn/badge-action@v2
+        with:
+          label: app
+          status: "${{ env.APP_COV }}%"
+          color: ${{ env.APP_COLOR }}
+          path: badges/coverage-app.svg
+
+      - name: Commit badges
+        if: github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs(badges): update test & coverage badges"
+          file_pattern: badges/tests.svg badges/coverage.svg badges/coverage-*.svg README.md
 
       - name: Upload coverage report (XML)
         if: always()
