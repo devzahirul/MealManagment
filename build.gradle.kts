@@ -36,3 +36,14 @@ koverReport {
         }
     }
 }
+
+// Ensure coverage XML report runs after tests and disable HTML reports to avoid FreeMarker issues
+tasks.matching { it.name == "koverHtmlReport" }.configureEach { enabled = false }
+subprojects {
+    afterEvaluate {
+        tasks.matching { it.name == "koverHtmlReport" }.configureEach { enabled = false }
+    }
+}
+tasks.named("koverXmlReport").configure {
+    dependsOn(":domain:test", ":core:test", ":data:testDebugUnitTest", ":app:testDebugUnitTest")
+}

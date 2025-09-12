@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -48,7 +53,8 @@ jobs:
               **/build/test-results/**
 
       - name: JUnit Report Summary
-        if: always()
+        if: >
+          always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: mikepenz/action-junit-report@v4
         with:
           report_paths: |
@@ -56,6 +62,7 @@ jobs:
             **/build/test-results/testDebugUnitTest/*.xml
             **/build/test-results/testReleaseUnitTest/*.xml
           require_tests: false
+          include_passed: true
 
       - name: Upload coverage report (XML)
         if: always()
