@@ -85,6 +85,38 @@ Sequence example (monthly summary):
 - `:data` — Firebase repository implementations, error mappers, Hilt binds
 - `:app` — Compose UI, ViewModels, DI providers
 
+### Visual Overview
+
+```
+ ┌──────────┐       ┌──────────┐       ┌────────┐       ┌────────────┐
+ │  app     │  👉   │  domain  │  👉   │  data  │  👉   │  Firebase   │
+ │ (UI +    │ uses  │ (use     │ uses  │ (repos │ hits │ Auth/Firestore
+ │ ViewModel│ cases)│ cases +  │ repos │ + data │ REST │ via SDKs)   │
+ │ layer)   │       │ contracts│       │sources)│       │             │
+ └──────────┘       └──────────┘       └────────┘       └────────────┘
+        ▲                ▲                ▲
+        │                │                │
+        └───── core abstractions (DateProvider, Dispatchers) ─────┘
+```
+
+Each arrow points one way—presentation depends on use cases, which depend on repository contracts, which are implemented by the data module. The core module supplies cross-cutting abstractions (time/dispatchers) without Android dependencies.
+
+### Why it scales and stays testable
+
+- **Explicit APIs:** Every capability is exposed through a dedicated use case (`domain/usecase`). This keeps ViewModels simple and makes features composable. Scaling the product means adding new use cases rather than touching shared repositories directly.
+- **Pluggable data sources:** The data module separates repository logic from Firebase APIs via `AuthDataSource`, `MealDataSource`, `CostDataSource`, and `UserDataSource`. Swapping to a different backend only requires new data source implementations; the rest of the stack remains untouched.
+- **Deterministic testing:** The domain and data layers have 100% line coverage enforced via `./gradlew koverVerify`. Because use cases depend on interfaces, we can inject fakes/stubs in unit tests (see `data/src/test/...` for examples) and fully validate behaviour without hitting the network.
+- **Maintainability:** Responsibilities are isolated. Core abstractions remove Android dependencies from lower layers; DI modules (`app/di`, `data/di`) are the only places wiring happens. This makes refactors localized and keeps runtime configuration in one place.
+
+### Use case walkthrough: “Refresh monthly dashboard”
+
+1. `HomeViewModel.refreshAll()` (app layer) requests the current month range from `MonthRangeCalculator` (domain utility) and triggers two use cases: `GetTotalCostForRange` and `GetTotalMealsForRange`.
+2. Each use case delegates to the appropriate repository (`CostRepository`, `MealRepository`) defined in the domain module. The ViewModel only receives `Result` objects and stays ignorant of Firebase implementation details.
+3. The repositories in `data` call into their injected data sources (e.g., `FirebaseCostDataSource`). Errors are mapped to `DomainError` so the UI can render friendly messages without parsing exceptions.
+4. Because the same use cases are reused elsewhere (e.g., by the user-level breakdown and today’s snapshot), logic stays consistent and reusable. Testing the flow is trivial: in unit tests we provide fake data sources returning deterministic values, and assert the ViewModel state updates without needing Firebase.
+
+This layered approach means new features (say, exporting reports or supporting another backend) can be built by adding new use cases/data sources without breaking existing contracts, keeping the codebase scalable, testable, and maintainable.
+
 ## Firestore Data Model
 
 - Users: `Users/{uid}`
