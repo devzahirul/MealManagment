@@ -54,14 +54,7 @@ android {
     }
 }
 
-// Kover configuration moved to root level - this fixes the error
-kover {
-    reports {
-        xml {
-            isEnabled = true
-        }
-    }
-}
+// Kover configuration is handled at the root level
 
 dependencies {
 
