@@ -200,6 +200,7 @@ jobs:
 
       - name: Commit badges
         if: github.ref == 'refs/heads/main'
+        continue-on-error: true
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "docs(badges): update test & coverage badges"
