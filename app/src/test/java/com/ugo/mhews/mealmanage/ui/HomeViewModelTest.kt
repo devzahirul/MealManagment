@@ -110,6 +110,18 @@ class HomeViewModelTest {
         assertEquals(15.0, state.utilityPerPerson, 0.0)
     }
 
+    @Test
+    fun utility_delete_updates_state() = runTest {
+        val vm = createHomeViewModel()
+        vm.addUtility("Wifi", 40.0)
+        vm.addUtility("Water", 20.0)
+        vm.removeUtility(0)
+        val state = vm.state.value
+        assertEquals(1, state.utilities.size)
+        assertEquals("Water", state.utilities.first().name)
+        assertEquals(20.0, state.utilityTotal, 0.0)
+    }
+
     private fun createHomeViewModel(): HomeViewModel {
         val fakeUsers = FakeUsers()
         return HomeViewModel(

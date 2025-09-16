@@ -204,5 +204,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun removeUtility(index: Int) {
+        _state.update { current ->
+            if (index !in current.utilities.indices) return@update current
+            val updated = current.utilities.toMutableList().also { it.removeAt(index) }
+            val total = updated.sumOf { it.cost }
+            val perPerson = if (current.utilityPersons > 0) total / current.utilityPersons else total
+            current.copy(utilities = updated, utilityTotal = total, utilityPerPerson = perPerson)
+        }
+    }
+
     fun consumeSnackbar() { _state.update { it.copy(snackbar = null) } }
 }

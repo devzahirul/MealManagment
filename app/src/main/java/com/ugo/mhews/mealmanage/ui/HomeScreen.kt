@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
@@ -132,13 +133,19 @@ fun HomeScreen(
                     Text("No utilities added yet", style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        state.utilities.forEach { entry ->
+                        state.utilities.forEachIndexed { index, entry ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(entry.name)
-                                Text(currency.format(entry.cost))
+                                Column {
+                                    Text(entry.name)
+                                    Text(currency.format(entry.cost), style = MaterialTheme.typography.bodySmall)
+                                }
+                                IconButton(onClick = { viewModel.removeUtility(index) }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Remove utility")
+                                }
                             }
                         }
                     }
