@@ -15,11 +15,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MealManage"
         android:enableOnBackInvokedCallback="true"
-        tools:targetApi="31">
+        tools:targetApi="33">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.MealManage">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

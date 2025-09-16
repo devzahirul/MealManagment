@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.ugo.mhews.mealmanage"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.ugo.mhews.mealmanage"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -51,6 +51,13 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    lint {
+        abortOnError = true
+        warningsAsErrors = false
+        checkAllWarnings = false
+        disable += setOf("InvalidPackage", "AndroidGradlePluginVersion", "GradleDependency", "NewerVersionAvailable")
     }
 }
 

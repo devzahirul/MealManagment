@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.ugo.mhews.mealmanage.data"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
@@ -23,6 +23,13 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+    }
+
+    lint {
+        abortOnError = true
+        warningsAsErrors = false
+        checkAllWarnings = false
+        disable += setOf("InvalidPackage", "AndroidGradlePluginVersion", "GradleDependency", "NewerVersionAvailable")
     }
 }
 

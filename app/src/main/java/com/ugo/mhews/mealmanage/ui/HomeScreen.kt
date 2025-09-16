@@ -80,7 +80,7 @@ fun HomeScreen(
             error = state.monthErr,
             currency = currency,
             onRefresh = { viewModel.refreshAll() },
-            extraContent = {
+            content = {
                 val meals = state.monthMealsTotal
                 if (!state.monthLoading && state.monthErr == null) {
                     Text("Total Meals: ${meals ?: 0}")
@@ -283,7 +283,7 @@ private fun StatCard(
     error: String?,
     currency: NumberFormat,
     onRefresh: () -> Unit,
-    extraContent: (@Composable () -> Unit)? = null
+    content: (@Composable () -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -306,9 +306,9 @@ private fun StatCard(
                     style = MaterialTheme.typography.headlineSmall
                 )
             }
-            if (extraContent != null) {
+            if (content != null) {
                 Spacer(Modifier.height(4.dp))
-                extraContent()
+                content()
             }
             Spacer(Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

@@ -54,12 +54,14 @@ fun CostAddScreen(
 
     val vmState by viewModel.state.collectAsState()
 
-    val formattedDateTime by derivedStateOf {
-        val dateMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-        val date = Instant.ofEpochMilli(dateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
-        val time = LocalTime.of(timeState.hour, timeState.minute)
-        val dt = LocalDateTime.of(date, time)
-        dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+    val formattedDateTime by remember(datePickerState.selectedDateMillis, timeState.hour, timeState.minute) {
+        derivedStateOf {
+            val dateMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+            val date = Instant.ofEpochMilli(dateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+            val time = LocalTime.of(timeState.hour, timeState.minute)
+            val dt = LocalDateTime.of(date, time)
+            dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        }
     }
 
     Scaffold(
