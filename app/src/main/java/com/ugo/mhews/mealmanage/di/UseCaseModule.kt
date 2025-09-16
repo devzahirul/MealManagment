@@ -13,6 +13,11 @@ import com.ugo.mhews.mealmanage.domain.usecase.GetTotalCostForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalsByUserForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalMealsForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetMealsByUserForRange
+import com.ugo.mhews.mealmanage.domain.usecase.AddUtility
+import com.ugo.mhews.mealmanage.domain.usecase.DeleteUtility
+import com.ugo.mhews.mealmanage.domain.usecase.ObserveUtilities
+import com.ugo.mhews.mealmanage.domain.usecase.ObserveUtilityPersonCount
+import com.ugo.mhews.mealmanage.domain.usecase.UpdateUtilityPersonCount
 import com.ugo.mhews.mealmanage.domain.usecase.GetCurrentProfile
 import com.ugo.mhews.mealmanage.domain.usecase.GetCurrentUserId
 import com.ugo.mhews.mealmanage.domain.usecase.GetUserNames
@@ -21,6 +26,7 @@ import com.ugo.mhews.mealmanage.domain.usecase.SignOut
 import com.ugo.mhews.mealmanage.domain.usecase.SignUp
 import com.ugo.mhews.mealmanage.domain.usecase.UpdateCurrentName
 import com.ugo.mhews.mealmanage.domain.repository.UserRepository
+import com.ugo.mhews.mealmanage.domain.repository.UtilityRepository
 import com.ugo.mhews.mealmanage.domain.time.MonthRangeCalculator
 import dagger.Module
 import dagger.Provides
@@ -98,6 +104,26 @@ object UseCaseModule {
     @Provides
     @Singleton
     fun provideGetCurrentUserId(repo: AuthRepository) = GetCurrentUserId(repo)
+
+    @Provides
+    @Singleton
+    fun provideObserveUtilities(repo: UtilityRepository) = ObserveUtilities(repo)
+
+    @Provides
+    @Singleton
+    fun provideAddUtility(repo: UtilityRepository) = AddUtility(repo)
+
+    @Provides
+    @Singleton
+    fun provideDeleteUtility(repo: UtilityRepository) = DeleteUtility(repo)
+
+    @Provides
+    @Singleton
+    fun provideObserveUtilityPersonCount(repo: UtilityRepository) = ObserveUtilityPersonCount(repo)
+
+    @Provides
+    @Singleton
+    fun provideUpdateUtilityPersonCount(repo: UtilityRepository) = UpdateUtilityPersonCount(repo)
 
     @Provides
     @Singleton

@@ -133,7 +133,7 @@ fun HomeScreen(
                     Text("No utilities added yet", style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        state.utilities.forEachIndexed { index, entry ->
+                        state.utilities.forEach { entry ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -143,7 +143,7 @@ fun HomeScreen(
                                     Text(entry.name)
                                     Text(currency.format(entry.cost), style = MaterialTheme.typography.bodySmall)
                                 }
-                                IconButton(onClick = { viewModel.removeUtility(index) }) {
+                                IconButton(onClick = { viewModel.removeUtility(entry.id) }) {
                                     Icon(Icons.Filled.Delete, contentDescription = "Remove utility")
                                 }
                             }
