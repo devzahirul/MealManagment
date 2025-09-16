@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ugo.mhews.mealmanage.domain.Result
 import com.ugo.mhews.mealmanage.core.DateProvider
-import com.ugo.mhews.mealmanage.domain.repository.UserRepository
 import com.ugo.mhews.mealmanage.domain.usecase.GetAllMealsForDate
 import com.ugo.mhews.mealmanage.domain.usecase.GetMealForDate
 import com.ugo.mhews.mealmanage.domain.usecase.ObserveMealsForMonth
 import com.ugo.mhews.mealmanage.domain.usecase.SetMealForDate
+import com.ugo.mhews.mealmanage.domain.usecase.GetUserNames
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +26,7 @@ class MealViewModel @Inject constructor(
     private val getMealForDate: GetMealForDate,
     private val setMealForDate: SetMealForDate,
     private val getAllMealsForDate: GetAllMealsForDate,
-    private val userRepository: UserRepository,
+    private val getUserNames: GetUserNames,
     private val dateProvider: DateProvider
 ) : ViewModel() {
 
@@ -97,7 +97,7 @@ class MealViewModel @Inject constructor(
                     }
                     is Result.Success -> {
                         val uids = res.value.map { it.uid }.toSet()
-                        val namesRes = userRepository.getNames(uids)
+                        val namesRes = getUserNames(uids)
                         val nameMap = when (namesRes) {
                             is Result.Success -> namesRes.value
                             is Result.Error -> emptyMap()

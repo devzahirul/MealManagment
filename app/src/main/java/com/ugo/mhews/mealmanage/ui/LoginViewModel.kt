@@ -3,7 +3,8 @@ package com.ugo.mhews.mealmanage.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ugo.mhews.mealmanage.domain.Result
-import com.ugo.mhews.mealmanage.domain.repository.AuthRepository
+import com.ugo.mhews.mealmanage.domain.usecase.SignIn
+import com.ugo.mhews.mealmanage.domain.usecase.SignUp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val auth: AuthRepository
+    private val signIn: SignIn,
+    private val signUp: SignUp
 ) : ViewModel() {
     data class UiState(
         val email: String = "",
@@ -41,7 +43,7 @@ class LoginViewModel @Inject constructor(
         }
         _state.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            val res = if (_state.value.isSignUp) auth.signUp(e, p) else auth.signIn(e, p)
+            val res = if (_state.value.isSignUp) signUp(e, p) else signIn(e, p)
             when (res) {
                 is Result.Error -> _state.update { it.copy(isLoading = false, snackbar = res.error.message ?: "Auth failed") }
                 is Result.Success -> _state.update { it.copy(isLoading = false, loggedIn = true) }
@@ -52,4 +54,3 @@ class LoginViewModel @Inject constructor(
     fun consumeSnackbar() { _state.update { it.copy(snackbar = null) } }
     fun consumeLoggedIn() { _state.update { it.copy(loggedIn = false) } }
 }
-

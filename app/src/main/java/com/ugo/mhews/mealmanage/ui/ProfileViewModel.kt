@@ -3,8 +3,9 @@ package com.ugo.mhews.mealmanage.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ugo.mhews.mealmanage.domain.Result
-import com.ugo.mhews.mealmanage.domain.repository.AuthRepository
-import com.ugo.mhews.mealmanage.domain.repository.UserRepository
+import com.ugo.mhews.mealmanage.domain.usecase.GetCurrentProfile
+import com.ugo.mhews.mealmanage.domain.usecase.SignOut
+import com.ugo.mhews.mealmanage.domain.usecase.UpdateCurrentName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,8 +16,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val users: UserRepository,
-    private val auth: AuthRepository
+    private val getCurrentProfile: GetCurrentProfile,
+    private val updateCurrentName: UpdateCurrentName,
+    private val signOutUseCase: SignOut
 ) : ViewModel() {
     data class UiState(
         val name: String = "",
@@ -33,7 +35,7 @@ class ProfileViewModel @Inject constructor(
     fun load() {
         _state.update { it.copy(loading = true) }
         viewModelScope.launch {
-            when (val res = users.getCurrentProfile()) {
+            when (val res = getCurrentProfile()) {
                 is Result.Error -> _state.update { it.copy(loading = false, snackbar = res.error.message ?: "Failed to load profile") }
                 is Result.Success -> _state.update { it.copy(loading = false, name = res.value.name, email = res.value.email) }
             }
@@ -46,7 +48,7 @@ class ProfileViewModel @Inject constructor(
         val name = _state.value.name.trim()
         _state.update { it.copy(saving = true) }
         viewModelScope.launch {
-            when (val res = users.updateCurrentName(name)) {
+            when (val res = updateCurrentName(name)) {
                 is Result.Error -> _state.update { it.copy(saving = false, snackbar = res.error.message ?: "Save failed") }
                 is Result.Success -> _state.update { it.copy(saving = false, snackbar = "Saved") }
             }
@@ -54,10 +56,9 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun signOut() {
-        auth.signOut()
+        signOutUseCase()
         _state.update { it.copy(signedOut = true, snackbar = "Signed out") }
     }
 
     fun consumeSnackbar() { _state.update { it.copy(snackbar = null) } }
 }
-

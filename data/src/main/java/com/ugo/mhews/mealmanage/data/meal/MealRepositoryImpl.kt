@@ -1,54 +1,45 @@
 package com.ugo.mhews.mealmanage.data.meal
 
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldPath
-import com.google.firebase.firestore.FirebaseFirestore
+import com.ugo.mhews.mealmanage.core.di.IoDispatcher
 import com.ugo.mhews.mealmanage.data.common.toDomainError
+import com.ugo.mhews.mealmanage.data.source.AuthDataSource
+import com.ugo.mhews.mealmanage.data.source.MealDataSource
 import com.ugo.mhews.mealmanage.domain.DomainError
 import com.ugo.mhews.mealmanage.domain.Result
 import com.ugo.mhews.mealmanage.domain.model.Meal
 import com.ugo.mhews.mealmanage.domain.model.UserId
 import com.ugo.mhews.mealmanage.domain.model.UserMeal
 import com.ugo.mhews.mealmanage.domain.repository.MealRepository
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
-import com.ugo.mhews.mealmanage.core.di.IoDispatcher
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 
 class MealRepositoryImpl @Inject constructor(
-    private val db: FirebaseFirestore,
-    private val auth: FirebaseAuth,
+    private val auth: AuthDataSource,
+    private val mealDataSource: MealDataSource,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : MealRepository {
 
-    private fun dayDoc(uid: String, date: LocalDate) =
-        db.collection("Meals").document(uid).collection("days").document(date.toString())
+    private fun currentUserId(): UserId? = auth.currentUserId()
 
     override suspend fun getMealForDate(date: LocalDate): Result<Meal> = withContext(ioDispatcher) {
-        val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
+        val uid = currentUserId() ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
         try {
-            val snap = dayDoc(user.uid, date).get().await()
-            val cnt = (snap.get("count") as? Number)?.toInt() ?: 0
-            Result.Success(Meal(date, cnt))
+            Result.Success(mealDataSource.readUserMeal(uid, date))
         } catch (t: Throwable) {
             Result.Error(t.toDomainError())
         }
     }
 
     override suspend fun setMealForDate(date: LocalDate, count: Int): Result<Unit> = withContext(ioDispatcher) {
-        val user = auth.currentUser ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
-        val data = hashMapOf(
-            "count" to count,
-            "date" to date.toString(),
-            "uid" to user.uid
-        )
+        val uid = currentUserId() ?: return@withContext Result.Error(DomainError.Auth("Not signed in"))
         try {
-            dayDoc(user.uid, date).set(data).await()
+            mealDataSource.writeUserMeal(uid, date, count)
             Result.Success(Unit)
         } catch (t: Throwable) {
             Result.Error(t.toDomainError())
@@ -58,83 +49,32 @@ class MealRepositoryImpl @Inject constructor(
     override fun observeMealsForUserRange(
         start: LocalDate,
         end: LocalDate
-    ): Flow<Result<Map<LocalDate, Int>>> = callbackFlow {
-        val user = auth.currentUser
-        if (user == null) {
-            trySend(Result.Error(DomainError.Auth("Not signed in")))
-            close()
-            return@callbackFlow
-        }
-        val startStr = start.toString()
-        val endStr = end.toString()
-        val reg = db.collection("Meals").document(user.uid).collection("days")
-            .whereGreaterThanOrEqualTo(FieldPath.documentId(), startStr)
-            .whereLessThan(FieldPath.documentId(), endStr)
-            .addSnapshotListener { snap, err ->
-                if (err != null) {
-                    trySend(Result.Error(err.toDomainError()))
-                } else {
-                    val map = mutableMapOf<LocalDate, Int>()
-                    if (snap != null) {
-                        for (d in snap.documents) {
-                            val dateStr = d.getString("date") ?: continue
-                            val cnt = (d.get("count") as? Number)?.toInt() ?: 0
-                            try { map[LocalDate.parse(dateStr)] = cnt } catch (_: Throwable) {}
-                        }
-                    }
-                    trySend(Result.Success(map))
-                }
-            }
-        awaitClose { reg.remove() }
+    ): Flow<Result<Map<LocalDate, Int>>> {
+        val uid = currentUserId() ?: return flowOf(Result.Error(DomainError.Auth("Not signed in")))
+        return mealDataSource.observeUserMeals(uid, start, end)
+            .map<Map<LocalDate, Int>, Result<Map<LocalDate, Int>>> { data -> Result.Success(data) }
+            .catch { e -> emit(Result.Error(e.toDomainError())) }
     }
 
     override suspend fun getAllMealsForDate(date: LocalDate): Result<List<UserMeal>> = withContext(ioDispatcher) {
-        val dateStr = date.toString()
         try {
-            val snap = db.collectionGroup("days")
-                .whereEqualTo("date", dateStr)
-                .get().await()
-            val list = snap.documents.mapNotNull { d ->
-                val uid = d.getString("uid") ?: return@mapNotNull null
-                val cnt = (d.get("count") as? Number)?.toInt() ?: 0
-                UserMeal(uid, cnt)
-            }
-            Result.Success(list)
+            Result.Success(mealDataSource.readAllMealsForDate(date))
         } catch (t: Throwable) {
             Result.Error(t.toDomainError())
         }
     }
 
-    override suspend fun getTotalMealsForRange(start: LocalDate, end: LocalDate): Result<Int> {
-        val startStr = start.toString()
-        val endStr = end.toString()
-        return try {
-            val snap = db.collectionGroup("days")
-                .whereGreaterThanOrEqualTo("date", startStr)
-                .whereLessThan("date", endStr)
-                .get().await()
-            val total = snap.documents.sumOf { (it.get("count") as? Number)?.toInt() ?: 0 }
-            Result.Success(total)
+    override suspend fun getTotalMealsForRange(start: LocalDate, end: LocalDate): Result<Int> = withContext(ioDispatcher) {
+        try {
+            Result.Success(mealDataSource.readTotalMeals(start, end))
         } catch (t: Throwable) {
             Result.Error(t.toDomainError())
         }
     }
 
-    override suspend fun getMealsByUserForRange(start: LocalDate, end: LocalDate): Result<Map<UserId, Int>> {
-        val startStr = start.toString()
-        val endStr = end.toString()
-        return try {
-            val snap = db.collectionGroup("days")
-                .whereGreaterThanOrEqualTo("date", startStr)
-                .whereLessThan("date", endStr)
-                .get().await()
-            val map = mutableMapOf<UserId, Int>()
-            for (d in snap.documents) {
-                val uid = d.getString("uid") ?: continue
-                val cnt = (d.get("count") as? Number)?.toInt() ?: 0
-                map[uid] = (map[uid] ?: 0) + cnt
-            }
-            Result.Success(map)
+    override suspend fun getMealsByUserForRange(start: LocalDate, end: LocalDate): Result<Map<UserId, Int>> = withContext(ioDispatcher) {
+        try {
+            Result.Success(mealDataSource.readMealsByUser(start, end))
         } catch (t: Throwable) {
             Result.Error(t.toDomainError())
         }
