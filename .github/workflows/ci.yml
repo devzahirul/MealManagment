@@ -48,7 +48,7 @@ jobs:
       - name: Compute coverage percent
         if: always()
         run: |
-          file=build/reports/kover/xml/report.xml
+          file=build/reports/kover/report.xml
           if [ ! -f "$file" ]; then
             echo "COVERAGE=0" >> $GITHUB_ENV
             echo "COV_COLOR=orange" >> $GITHUB_ENV
@@ -82,10 +82,10 @@ jobs:
             echo "$var=$pct" >> $GITHUB_ENV
             echo "$varc=$color" >> $GITHUB_ENV
           }
-          parse_cov domain/build/reports/kover/xml/report.xml DOMAIN_COV DOMAIN_COLOR
-          parse_cov core/build/reports/kover/xml/report.xml CORE_COV CORE_COLOR
-          parse_cov data/build/reports/kover/xml/report.xml DATA_COV DATA_COLOR
-          parse_cov app/build/reports/kover/xml/report.xml APP_COV APP_COLOR
+          parse_cov domain/build/reports/kover/report.xml DOMAIN_COV DOMAIN_COLOR
+          parse_cov core/build/reports/kover/report.xml CORE_COV CORE_COLOR
+          parse_cov data/build/reports/kover/report.xml DATA_COV DATA_COLOR
+          parse_cov app/build/reports/kover/report.xml APP_COV APP_COLOR
 
       - name: Upload unit test reports
         if: always()
@@ -235,4 +235,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-kover-xml
-          path: build/reports/kover/xml/report.xml
+          path: build/reports/kover/report.xml

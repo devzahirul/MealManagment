@@ -150,7 +150,7 @@ This repo uses the Kover plugin for coverage.
 
 Generate XML coverage locally:
 - `./gradlew koverXmlReport`
-- Root XML: `build/reports/kover/xml/report.xml`
+- Root XML: `build/reports/kover/report.xml`
 
 HTML coverage:
 - HTML generation is disabled in CI to avoid template rendering issues.
