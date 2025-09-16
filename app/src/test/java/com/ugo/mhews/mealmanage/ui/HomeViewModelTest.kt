@@ -88,4 +88,46 @@ class HomeViewModelTest {
         assertEquals(100.0, s.monthTotal!!, 0.001)
         assertEquals(10, s.monthMealsTotal)
     }
+
+    @Test
+    fun utility_addition_accumulates_totals() = runTest {
+        val vm = createHomeViewModel()
+        vm.addUtility("Wifi", 40.0)
+        vm.addUtility("Water", 20.0)
+        val state = vm.state.value
+        assertEquals(2, state.utilities.size)
+        assertEquals(60.0, state.utilityTotal, 0.0)
+    }
+
+    @Test
+    fun utility_per_person_updates_with_count() = runTest {
+        val vm = createHomeViewModel()
+        vm.addUtility("Wifi", 40.0)
+        vm.addUtility("Water", 20.0)
+        vm.updateUtilityPersons(4)
+        val state = vm.state.value
+        assertEquals(4, state.utilityPersons)
+        assertEquals(15.0, state.utilityPerPerson, 0.0)
+    }
+
+    private fun createHomeViewModel(): HomeViewModel {
+        val fakeUsers = FakeUsers()
+        return HomeViewModel(
+            getTotalCostForRange = GetTotalCostForRange(FakeCosts()),
+            getTotalMealsForRange = GetTotalMealsForRange(FakeMeals()),
+            getTotalsByUserForRange = GetTotalsByUserForRange(FakeCosts()),
+            getMealsByUserForRange = GetMealsByUserForRange(FakeMeals()),
+            getCostsForUserRange = GetCostsForUserRange(FakeCosts()),
+            getAllMealsForDate = GetAllMealsForDate(FakeMeals()),
+            getUserNames = GetUserNames(object : com.ugo.mhews.mealmanage.domain.repository.UserRepository {
+                override suspend fun getCurrentProfile(): Result<UserProfile> = Result.Error(com.ugo.mhews.mealmanage.domain.DomainError.Unknown("NA"))
+                override suspend fun updateCurrentName(name: String): Result<Unit> = Result.Success(Unit)
+                override suspend fun getNames(uids: Set<String>) = fakeUsers.names(uids)
+            }),
+            dateProvider = object : DateProvider {
+                override fun today(zoneId: ZoneId): LocalDate = LocalDate.now(zoneId)
+            },
+            monthRangeCalculator = MonthRangeCalculator()
+        )
+    }
 }
