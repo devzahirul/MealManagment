@@ -35,10 +35,12 @@ fun CostAddScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     var name by remember { mutableStateOf("") }
     var costText by remember { mutableStateOf("") }
+    var utilityName by remember { mutableStateOf("") }
+    var utilityCostText by remember { mutableStateOf("") }
+    var personsText by remember { mutableStateOf("1") }
 
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
     var showDatePicker by remember { mutableStateOf(false) }
@@ -91,6 +93,83 @@ fun CostAddScreen(
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
             )
+
+            Spacer(Modifier.height(12.dp))
+
+            Divider()
+            Spacer(Modifier.height(12.dp))
+            Text("Utility Costs", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = utilityName,
+                onValueChange = { utilityName = it },
+                label = { Text("Utility name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = utilityCostText,
+                onValueChange = { utilityCostText = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("Utility cost") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Button(onClick = {
+                val cost = utilityCostText.toDoubleOrNull()
+                if (utilityName.isBlank() || cost == null) {
+                    Toast.makeText(context, "Enter utility name and cost", Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.addUtility(utilityName.trim(), cost)
+                    utilityName = ""
+                    utilityCostText = ""
+                }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text("Add Utility")
+            }
+
+            if (vmState.utilities.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    vmState.utilities.forEach { entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(entry.name)
+                            Text("${entry.cost}")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text("Total utility: ${vmState.totalUtility}", style = MaterialTheme.typography.bodyMedium)
+
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = personsText,
+                    onValueChange = { text ->
+                        val filtered = text.filter { it.isDigit() }
+                        personsText = filtered
+                        viewModel.updateUtilityPersons(filtered.toIntOrNull() ?: 0)
+                    },
+                    label = { Text("Total persons") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+                )
+
+                Spacer(Modifier.height(8.dp))
+                Text("Per person utility: ${vmState.perPersonUtility}", style = MaterialTheme.typography.bodyMedium)
+            }
 
             Spacer(Modifier.height(12.dp))
 

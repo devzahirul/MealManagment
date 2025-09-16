@@ -11,6 +11,7 @@ build/
 
 # Local configuration
 local.properties
+google-services.json
 
 # Keystores (do not commit signing keys)
 *.jks
@@ -29,4 +30,3 @@ out/
 .externalNativeBuild/
 .cxx/
 captures/
-
