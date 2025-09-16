@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
@@ -25,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,9 +36,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -55,6 +62,14 @@ fun HomeScreen(
     val monthFormatter = remember { DateTimeFormatter.ofPattern("MMMM yyyy") }
     val state by viewModel.state.collectAsState()
     var showMonthPicker by remember { mutableStateOf(false) }
+    var showUtilityDialog by remember { mutableStateOf(false) }
+    var utilityName by remember { mutableStateOf("") }
+    var utilityCostText by remember { mutableStateOf("") }
+    var utilityPersonsText by remember { mutableStateOf(state.utilityPersons.toString()) }
+
+    LaunchedEffect(state.utilityPersons) {
+        utilityPersonsText = state.utilityPersons.toString()
+    }
 
     Column(
         modifier = modifier
@@ -93,6 +108,66 @@ fun HomeScreen(
                 }
             }
         )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Utility Card", style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { showUtilityDialog = true }) {
+                        Icon(Icons.Filled.Add, contentDescription = "Add utility")
+                    }
+                }
+
+                if (state.utilities.isEmpty()) {
+                    Text("No utilities added yet", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        state.utilities.forEach { entry ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(entry.name)
+                                    Text(currency.format(entry.cost), style = MaterialTheme.typography.bodySmall)
+                                }
+                                IconButton(onClick = { viewModel.removeUtility(entry.id) }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Remove utility")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = utilityPersonsText,
+                    onValueChange = { text ->
+                        val filtered = text.filter { it.isDigit() }
+                        utilityPersonsText = filtered
+                        viewModel.updateUtilityPersons(filtered.toIntOrNull() ?: 0)
+                    },
+                    label = { Text("Total persons") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+                )
+
+                Text("Total utility: ${currency.format(state.utilityTotal)}", style = MaterialTheme.typography.bodyMedium)
+                Text("Per person: ${currency.format(state.utilityPerPerson)}", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
 
         // Today's Meals card
         Card(
@@ -266,6 +341,51 @@ fun HomeScreen(
                                 }
                             }
                         }
+                    }
+                }
+            )
+        }
+
+        if (showUtilityDialog) {
+            AlertDialog(
+                onDismissRequest = { showUtilityDialog = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val cost = utilityCostText.toDoubleOrNull()
+                        if (utilityName.isNotBlank() && cost != null && cost > 0) {
+                            viewModel.addUtility(utilityName.trim(), cost)
+                            utilityName = ""
+                            utilityCostText = ""
+                            showUtilityDialog = false
+                        }
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showUtilityDialog = false
+                        utilityName = ""
+                        utilityCostText = ""
+                    }) { Text("Cancel") }
+                },
+                title = { Text("Add Utility") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = utilityName,
+                            onValueChange = { utilityName = it },
+                            label = { Text("Utility name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                        )
+                        OutlinedTextField(
+                            value = utilityCostText,
+                            onValueChange = { utilityCostText = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                            label = { Text("Amount") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+                        )
                     }
                 }
             )

@@ -39,6 +39,8 @@ class HomeViewModel @Inject constructor(
 
     data class UserTotal(val uid: String, val name: String, val total: Double)
 
+    data class UtilityEntry(val name: String, val cost: Double)
+
     data class UiState(
         val selectedMonth: YearMonth = YearMonth.now(),
         val zone: ZoneId = ZoneId.systemDefault(),
@@ -62,6 +64,11 @@ class HomeViewModel @Inject constructor(
         val userCostsLoading: Boolean = false,
         val userCostsErr: String? = null,
         val userCosts: List<CostItem> = emptyList(),
+
+        val utilities: List<UtilityEntry> = emptyList(),
+        val utilityTotal: Double = 0.0,
+        val utilityPersons: Int = 1,
+        val utilityPerPerson: Double = 0.0,
 
         val snackbar: String? = null
     )
@@ -175,6 +182,35 @@ class HomeViewModel @Inject constructor(
                 is Result.Error -> _state.update { it.copy(userCostsLoading = false, userCostsErr = res.error.message ?: "Unknown error") }
                 is Result.Success -> _state.update { it.copy(userCostsLoading = false, userCosts = res.value) }
             }
+        }
+    }
+
+    fun addUtility(name: String, cost: Double) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty() || cost <= 0) return
+        _state.update { current ->
+            val updatedList = current.utilities + UtilityEntry(trimmed, cost)
+            val total = updatedList.sumOf { it.cost }
+            val perPerson = if (current.utilityPersons > 0) total / current.utilityPersons else total
+            current.copy(utilities = updatedList, utilityTotal = total, utilityPerPerson = perPerson)
+        }
+    }
+
+    fun updateUtilityPersons(count: Int) {
+        val safeCount = if (count < 1) 1 else count
+        _state.update { current ->
+            val perPerson = if (safeCount > 0) current.utilityTotal / safeCount else 0.0
+            current.copy(utilityPersons = safeCount, utilityPerPerson = perPerson)
+        }
+    }
+
+    fun removeUtility(index: Int) {
+        _state.update { current ->
+            if (index !in current.utilities.indices) return@update current
+            val updated = current.utilities.toMutableList().also { it.removeAt(index) }
+            val total = updated.sumOf { it.cost }
+            val perPerson = if (current.utilityPersons > 0) total / current.utilityPersons else total
+            current.copy(utilities = updated, utilityTotal = total, utilityPerPerson = perPerson)
         }
     }
 
