@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 private const val MEALS_COLLECTION = "Meals"
@@ -52,7 +53,11 @@ class FirebaseMealDataSource @Inject constructor(
                         for (doc in snapshot.documents) {
                             val dateStr = doc.getString("date") ?: continue
                             val count = (doc.get("count") as? Number)?.toInt() ?: 0
-                            map[LocalDate.parse(dateStr)] = count
+                            try {
+                                map[LocalDate.parse(dateStr)] = count
+                            } catch (_: DateTimeParseException) {
+                                // Ignore malformed dates to keep stream alive
+                            }
                         }
                     }
                     trySend(map)
