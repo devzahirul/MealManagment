@@ -51,9 +51,9 @@ jobs:
           file=build/reports/kover/report.xml
           pct=0
           if [ -f "$file" ]; then
-            line=$(grep -o '<counter type="LINE"[^>]*/>' "$file" | head -n1)
+            line=$(grep -o '<counter type="LINE"[^>]*/>' "$file" | tail -n1)
             if [ -z "$line" ]; then
-              line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$file" | head -n1)
+              line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$file" | tail -n1)
             fi
             missed=$(echo "$line" | sed -E 's/.*missed="([0-9]+)".*/\1/')
             covered=$(echo "$line" | sed -E 's/.*covered="([0-9]+)".*/\1/')
@@ -65,8 +65,8 @@ jobs:
             agg_missed=0; agg_covered=0
             for f in domain/build/reports/kover/report.xml core/build/reports/kover/report.xml data/build/reports/kover/report.xml app/build/reports/kover/report.xml; do
               if [ -f "$f" ]; then
-                line=$(grep -o '<counter type="LINE"[^>]*/>' "$f" | head -n1)
-                if [ -z "$line" ]; then line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$f" | head -n1); fi
+                line=$(grep -o '<counter type="LINE"[^>]*/>' "$f" | tail -n1)
+                if [ -z "$line" ]; then line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$f" | tail -n1); fi
                 m=$(echo "$line" | sed -E 's/.*missed="([0-9]+)".*/\1/')
                 c=$(echo "$line" | sed -E 's/.*covered="([0-9]+)".*/\1/')
                 agg_missed=$(( agg_missed + ${m:-0} ))
@@ -86,8 +86,8 @@ jobs:
           parse_cov() {
             f="$1"; var="$2"; varc="$3"
             if [ ! -f "$f" ]; then echo "$var=0" >> $GITHUB_ENV; echo "$varc=orange" >> $GITHUB_ENV; return; fi
-            line=$(grep -o '<counter type="LINE"[^>]*/>' "$f" | head -n1)
-            if [ -z "$line" ]; then line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$f" | head -n1); fi
+            line=$(grep -o '<counter type="LINE"[^>]*/>' "$f" | tail -n1)
+            if [ -z "$line" ]; then line=$(grep -o '<counter type="LINE" missed="[^"]*" covered="[^"]*"' "$f" | tail -n1); fi
             missed=$(echo "$line" | sed -E 's/.*missed="([0-9]+)".*/\1/')
             covered=$(echo "$line" | sed -E 's/.*covered="([0-9]+)".*/\1/')
             total=$(( ${missed:-0} + ${covered:-0} ))
