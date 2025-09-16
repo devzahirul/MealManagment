@@ -29,5 +29,29 @@ class CostAddViewModelTest {
         val s = vm.state.value
         assertEquals("Saved successfully", s.snackbar)
     }
-}
 
+    @Test
+    fun addUtility_accumulates_total() {
+        val vm = CostAddViewModel(AddCost(FakeCostRepo()))
+
+        vm.addUtility("Wifi", 40.0)
+        vm.addUtility("Water", 20.0)
+
+        val state = vm.state.value
+        assertEquals(2, state.utilities.size)
+        assertEquals(60.0, state.totalUtility, 0.0)
+    }
+
+    @Test
+    fun perPersonUtility_updates_with_person_count() {
+        val vm = CostAddViewModel(AddCost(FakeCostRepo()))
+
+        vm.addUtility("Wifi", 40.0)
+        vm.addUtility("Water", 20.0)
+        vm.updateUtilityPersons(4)
+
+        val state = vm.state.value
+        assertEquals(4, state.totalPersons)
+        assertEquals(15.0, state.perPersonUtility, 0.0)
+    }
+}
