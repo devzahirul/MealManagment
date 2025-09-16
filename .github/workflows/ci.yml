@@ -206,6 +206,30 @@ jobs:
           commit_message: "docs(badges): update test & coverage badges"
           file_pattern: badges/tests.svg badges/coverage.svg badges/coverage-*.svg README.md
 
+      - name: Open PR with badges update
+        if: github.ref == 'refs/heads/main'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "docs(badges): update test & coverage badges"
+          title: "docs(badges): update test & coverage badges"
+          body: |
+            Automated badges update from CI.
+
+            Tests: ${{ env.PASSED }}/${{ env.TOTAL }} (failed: ${{ env.FAILED }})
+            Coverage: ${{ env.COVERAGE }}%
+            Module coverage:
+            - domain: ${{ env.DOMAIN_COV }}%
+            - core: ${{ env.CORE_COV }}%
+            - data: ${{ env.DATA_COV }}%
+            - app: ${{ env.APP_COV }}%
+          branch: ci/update-badges
+          delete-branch: true
+          labels: badges, automation
+          add-paths: |
+            badges/tests.svg
+            badges/coverage.svg
+            badges/coverage-*.svg
+
       - name: Upload coverage report (XML)
         if: always()
         uses: actions/upload-artifact@v4
