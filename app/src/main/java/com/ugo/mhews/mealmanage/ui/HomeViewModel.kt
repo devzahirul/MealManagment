@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ugo.mhews.mealmanage.domain.Result
 import com.ugo.mhews.mealmanage.core.DateProvider
-import com.ugo.mhews.mealmanage.domain.repository.UserRepository
 import com.ugo.mhews.mealmanage.domain.model.CostItem
 import com.ugo.mhews.mealmanage.domain.usecase.GetAllMealsForDate
 import com.ugo.mhews.mealmanage.domain.usecase.GetCostsForUserRange
@@ -12,15 +11,15 @@ import com.ugo.mhews.mealmanage.domain.usecase.GetMealsByUserForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalCostForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalMealsForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalsByUserForRange
+import com.ugo.mhews.mealmanage.domain.usecase.GetUserNames
+import com.ugo.mhews.mealmanage.domain.time.MonthRangeCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
 import java.time.LocalDate
-import java.time.Month
 import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
@@ -33,8 +32,9 @@ class HomeViewModel @Inject constructor(
     private val getMealsByUserForRange: GetMealsByUserForRange,
     private val getCostsForUserRange: GetCostsForUserRange,
     private val getAllMealsForDate: GetAllMealsForDate,
-    private val users: UserRepository,
-    private val dateProvider: DateProvider
+    private val getUserNames: GetUserNames,
+    private val dateProvider: DateProvider,
+    private val monthRangeCalculator: MonthRangeCalculator
 ) : ViewModel() {
 
     data class UserTotal(val uid: String, val name: String, val total: Double)
@@ -90,19 +90,17 @@ class HomeViewModel @Inject constructor(
         _state.update { it.copy(monthLoading = true, monthErr = null, monthMealsTotal = null) }
         val ym = _state.value.selectedMonth
         val zone = _state.value.zone
-        val startMs = ym.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val endMs = ym.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val startDate = ym.atDay(1)
-        val endDate = ym.plusMonths(1).atDay(1)
+        val dateRange = monthRangeCalculator.of(ym)
+        val epochRange = dateRange.toEpochMillis(zone)
         viewModelScope.launch {
             var monthErr: String? = null
             var total: Double? = null
-            when (val costRes = getTotalCostForRange(startMs, endMs, null)) {
+            when (val costRes = getTotalCostForRange(epochRange.startInclusive, epochRange.endExclusive, null)) {
                 is Result.Error -> monthErr = costRes.error.message ?: "Unknown error"
                 is Result.Success -> total = costRes.value
             }
             var mealsTotal: Int? = null
-            when (val mealRes = getTotalMealsForRange(startDate, endDate)) {
+            when (val mealRes = getTotalMealsForRange(dateRange.start, dateRange.endExclusive)) {
                 is Result.Error -> monthErr = monthErr ?: mealRes.error.message ?: "Unknown error"
                 is Result.Success -> mealsTotal = mealRes.value
             }
@@ -120,8 +118,7 @@ class HomeViewModel @Inject constructor(
                     val list = listRes.value
                     val total = list.sumOf { it.count }
                     val uids = list.map { it.uid }.toSet()
-                    val namesRes = users.getNames(uids)
-                    val nameMap = when (namesRes) {
+                    val nameMap = when (val namesRes = getUserNames(uids)) {
                         is Result.Success -> namesRes.value
                         is Result.Error -> emptyMap()
                     }
@@ -139,17 +136,16 @@ class HomeViewModel @Inject constructor(
         _state.update { it.copy(byUserLoading = true, byUserErr = null) }
         val ym = _state.value.selectedMonth
         val zone = _state.value.zone
-        val start = ym.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = ym.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val dateRange = monthRangeCalculator.of(ym)
+        val epochRange = dateRange.toEpochMillis(zone)
         viewModelScope.launch {
             var byErr: String? = null
-            val sumsRes = getTotalsByUserForRange(start, end)
+            val sumsRes = getTotalsByUserForRange(epochRange.startInclusive, epochRange.endExclusive)
             val sums = when (sumsRes) {
                 is Result.Error -> { byErr = sumsRes.error.message ?: "Unknown error"; emptyMap() }
                 is Result.Success -> sumsRes.value
             }
-            val namesRes = users.getNames(sums.keys.toSet())
-            val nameMap = when (namesRes) {
+            val nameMap = when (val namesRes = getUserNames(sums.keys.toSet())) {
                 is Result.Error -> { byErr = byErr ?: namesRes.error.message ?: "Unknown error"; emptyMap() }
                 is Result.Success -> namesRes.value
             }
@@ -158,10 +154,7 @@ class HomeViewModel @Inject constructor(
                 UserTotal(uid, name, total)
             }.sortedByDescending { it.total }
             // Fetch meals by user for expected balances
-            val startDate = ym.atDay(1)
-            val endDate = ym.plusMonths(1).atDay(1)
-            val mealsByUserRes = getMealsByUserForRange(startDate, endDate)
-            val byMeals = when (mealsByUserRes) {
+            val byMeals = when (val mealsByUserRes = getMealsByUserForRange(dateRange.start, dateRange.endExclusive)) {
                 is Result.Error -> { byErr = byErr ?: mealsByUserRes.error.message ?: "Unknown error"; emptyMap() }
                 is Result.Success -> mealsByUserRes.value
             }
@@ -175,11 +168,10 @@ class HomeViewModel @Inject constructor(
         val user = _state.value.selectedUser ?: return
         val ym = _state.value.selectedMonth
         val zone = _state.value.zone
-        val start = ym.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = ym.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val epochRange = monthRangeCalculator.of(ym).toEpochMillis(zone)
         _state.update { it.copy(userCostsLoading = true, userCostsErr = null, userCosts = emptyList()) }
         viewModelScope.launch {
-            when (val res = getCostsForUserRange(user.uid, start, end)) {
+            when (val res = getCostsForUserRange(user.uid, epochRange.startInclusive, epochRange.endExclusive)) {
                 is Result.Error -> _state.update { it.copy(userCostsLoading = false, userCostsErr = res.error.message ?: "Unknown error") }
                 is Result.Success -> _state.update { it.copy(userCostsLoading = false, userCosts = res.value) }
             }

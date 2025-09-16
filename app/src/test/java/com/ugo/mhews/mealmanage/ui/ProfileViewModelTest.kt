@@ -5,6 +5,9 @@ import com.ugo.mhews.mealmanage.domain.Result
 import com.ugo.mhews.mealmanage.domain.model.UserProfile
 import com.ugo.mhews.mealmanage.domain.repository.AuthRepository
 import com.ugo.mhews.mealmanage.domain.repository.UserRepository
+import com.ugo.mhews.mealmanage.domain.usecase.GetCurrentProfile
+import com.ugo.mhews.mealmanage.domain.usecase.SignOut
+import com.ugo.mhews.mealmanage.domain.usecase.UpdateCurrentName
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -29,7 +32,13 @@ class ProfileViewModelTest {
 
     @Test
     fun load_and_save_and_signout() = runTest {
-        val vm = ProfileViewModel(FakeUsersRepo(), FakeAuthRepo())
+        val userRepo = FakeUsersRepo()
+        val authRepo = FakeAuthRepo()
+        val vm = ProfileViewModel(
+            getCurrentProfile = GetCurrentProfile(userRepo),
+            updateCurrentName = UpdateCurrentName(userRepo),
+            signOutUseCase = SignOut(authRepo)
+        )
         vm.load()
         advanceUntilIdle()
         val s1 = vm.state.value
@@ -46,4 +55,3 @@ class ProfileViewModelTest {
         assertEquals(true, s3.signedOut)
     }
 }
-

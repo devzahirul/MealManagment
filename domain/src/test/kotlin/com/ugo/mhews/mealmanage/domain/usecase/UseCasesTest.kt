@@ -87,3 +87,73 @@ class UseCasesTest {
         assertEquals(1, (res as Result.Success).value.size)
     }
 }
+
+private class FakeAuthRepo : com.ugo.mhews.mealmanage.domain.repository.AuthRepository {
+    var signedOut = false
+    var lastEmail: String? = null
+    var lastPassword: String? = null
+    override suspend fun signIn(email: String, password: String) =
+        com.ugo.mhews.mealmanage.domain.Result.Success("uid-signin").also {
+            lastEmail = email; lastPassword = password
+        }
+    override suspend fun signUp(email: String, password: String) =
+        com.ugo.mhews.mealmanage.domain.Result.Success("uid-signup").also {
+            lastEmail = email; lastPassword = password
+        }
+    override fun currentUser(): String? = "uid-current"
+    override fun signOut() { signedOut = true }
+}
+
+private class FakeUserRepo : com.ugo.mhews.mealmanage.domain.repository.UserRepository {
+    override suspend fun getCurrentProfile() =
+        com.ugo.mhews.mealmanage.domain.Result.Success(
+            com.ugo.mhews.mealmanage.domain.model.UserProfile("uid", "name", "email")
+        )
+    override suspend fun updateCurrentName(name: String) =
+        com.ugo.mhews.mealmanage.domain.Result.Success(Unit)
+    override suspend fun getNames(uids: Set<String>) =
+        com.ugo.mhews.mealmanage.domain.Result.Success(uids.associateWith { "User-$it" })
+}
+
+class AuthAndUserUseCasesTest {
+    private val auth = FakeAuthRepo()
+    private val users = FakeUserRepo()
+
+    @Test fun signIn_delegates() = runBlocking {
+        val res = SignIn(auth)("a@b.com", "secret")
+        assertEquals("uid-signin", (res as Result.Success).value)
+        assertEquals("a@b.com", auth.lastEmail)
+    }
+
+    @Test fun signUp_delegates() = runBlocking {
+        val res = SignUp(auth)("c@d.com", "secret")
+        assertEquals("uid-signup", (res as Result.Success).value)
+        assertEquals("c@d.com", auth.lastEmail)
+    }
+
+    @Test fun signOut_invokesRepo() {
+        SignOut(auth)()
+        assertEquals(true, auth.signedOut)
+    }
+
+    @Test fun currentUser_readsRepo() {
+        val uid = GetCurrentUserId(auth)()
+        assertEquals("uid-current", uid)
+    }
+
+    @Test fun getCurrentProfile_callsRepo() = runBlocking {
+        val profile = GetCurrentProfile(users)()
+        assertEquals("name", (profile as Result.Success).value.name)
+    }
+
+    @Test fun updateCurrentName_callsRepo() = runBlocking {
+        val res = UpdateCurrentName(users)("New")
+        assertEquals(true, res is Result.Success)
+    }
+
+    @Test fun getUserNames_callsRepo() = runBlocking {
+        val res = GetUserNames(users)(setOf("u1", "u2"))
+        val names = (res as Result.Success).value
+        assertEquals("User-u1", names["u1"])
+    }
+}
