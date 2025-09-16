@@ -34,6 +34,13 @@ koverReport {
                 packages("hilt_aggregated_deps", "dagger.hilt.internal.generated")
             }
         }
+        verify {
+            rule("LineCoverage") {
+                bound {
+                    minValue = 100
+                }
+            }
+        }
     }
 }
 

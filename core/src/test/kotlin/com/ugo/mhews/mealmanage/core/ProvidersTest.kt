@@ -21,5 +21,18 @@ class ProvidersTest {
         val dp = SystemDateProvider(fixed)
         assertEquals(LocalDate.of(2024, 1, 15), dp.today(zone))
     }
-}
 
+    @Test fun dateProvider_default_parameter_uses_system_zone() {
+        var capturedZone: ZoneId? = null
+        val provider = object : DateProvider {
+            override fun today(zoneId: ZoneId): LocalDate {
+                capturedZone = zoneId
+                return LocalDate.of(2000, 1, 1)
+            }
+        }
+
+        val value = provider.today()
+        assertEquals(LocalDate.of(2000, 1, 1), value)
+        assertEquals(ZoneId.systemDefault(), capturedZone)
+    }
+}

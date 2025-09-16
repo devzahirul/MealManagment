@@ -6,11 +6,11 @@ import com.ugo.mhews.mealmanage.MainDispatcherRule
 import com.ugo.mhews.mealmanage.domain.model.UserMeal
 import com.ugo.mhews.mealmanage.domain.model.Meal
 import com.ugo.mhews.mealmanage.domain.repository.MealRepository
-import com.ugo.mhews.mealmanage.domain.repository.UserRepository
 import com.ugo.mhews.mealmanage.domain.usecase.GetAllMealsForDate
 import com.ugo.mhews.mealmanage.domain.usecase.GetMealForDate
 import com.ugo.mhews.mealmanage.domain.usecase.ObserveMealsForMonth
 import com.ugo.mhews.mealmanage.domain.usecase.SetMealForDate
+import com.ugo.mhews.mealmanage.domain.usecase.GetUserNames
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,7 +24,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.YearMonth
 
-private class FakeUserRepo : UserRepository {
+private class FakeUserNames : com.ugo.mhews.mealmanage.domain.repository.UserRepository {
     override suspend fun getCurrentProfile() = Result.Error(com.ugo.mhews.mealmanage.domain.DomainError.Unknown("NA"))
     override suspend fun updateCurrentName(name: String) = Result.Error(com.ugo.mhews.mealmanage.domain.DomainError.Unknown("NA"))
     override suspend fun getNames(uids: Set<String>) = Result.Success(uids.associateWith { "User ${it.take(6)}" })
@@ -51,7 +51,7 @@ class MealViewModelTest {
             getMealForDate = GetMealForDate(fakeRepo),
             setMealForDate = SetMealForDate(fakeRepo),
             getAllMealsForDate = GetAllMealsForDate(fakeRepo),
-            userRepository = FakeUserRepo(),
+            getUserNames = GetUserNames(FakeUserNames()),
             dateProvider = object : DateProvider {
                 override fun today(zoneId: ZoneId): LocalDate = LocalDate.now(zoneId)
             }

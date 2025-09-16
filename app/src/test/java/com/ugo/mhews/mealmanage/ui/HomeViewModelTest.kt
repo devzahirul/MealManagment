@@ -5,13 +5,14 @@ import com.ugo.mhews.mealmanage.core.DateProvider
 import com.ugo.mhews.mealmanage.domain.model.CostItem
 import com.ugo.mhews.mealmanage.domain.repository.MealRepository
 import com.ugo.mhews.mealmanage.domain.repository.CostRepository
-import com.ugo.mhews.mealmanage.domain.repository.UserRepository
 import com.ugo.mhews.mealmanage.domain.usecase.GetAllMealsForDate
 import com.ugo.mhews.mealmanage.domain.usecase.GetCostsForUserRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetMealsByUserForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalCostForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalMealsForRange
 import com.ugo.mhews.mealmanage.domain.usecase.GetTotalsByUserForRange
+import com.ugo.mhews.mealmanage.domain.usecase.GetUserNames
+import com.ugo.mhews.mealmanage.domain.time.MonthRangeCalculator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -29,11 +30,8 @@ import com.ugo.mhews.mealmanage.domain.model.Meal
 import com.ugo.mhews.mealmanage.domain.model.UserMeal
 
 
-private class FakeUsers : UserRepository {
-    override suspend fun getCurrentProfile(): Result<UserProfile> =
-        Result.Error(com.ugo.mhews.mealmanage.domain.DomainError.Unknown("NA"))
-    override suspend fun updateCurrentName(name: String): Result<Unit> = Result.Success(Unit)
-    override suspend fun getNames(uids: Set<String>): Result<Map<String, String>> =
+private class FakeUsers {
+    suspend fun names(uids: Set<String>): Result<Map<String, String>> =
         Result.Success(uids.associateWith { "User ${it.take(6)}" })
 }
 
@@ -63,6 +61,7 @@ class HomeViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
     @Test
     fun initialLoads_populateState() = runTest {
+        val fakeUsers = FakeUsers()
         val vm = HomeViewModel(
             getTotalCostForRange = GetTotalCostForRange(FakeCosts()),
             getTotalMealsForRange = GetTotalMealsForRange(FakeMeals()),
@@ -70,10 +69,15 @@ class HomeViewModelTest {
             getMealsByUserForRange = GetMealsByUserForRange(FakeMeals()),
             getCostsForUserRange = GetCostsForUserRange(FakeCosts()),
             getAllMealsForDate = GetAllMealsForDate(FakeMeals()),
-            users = FakeUsers(),
+            getUserNames = GetUserNames(object : com.ugo.mhews.mealmanage.domain.repository.UserRepository {
+                override suspend fun getCurrentProfile(): Result<UserProfile> = Result.Error(com.ugo.mhews.mealmanage.domain.DomainError.Unknown("NA"))
+                override suspend fun updateCurrentName(name: String): Result<Unit> = Result.Success(Unit)
+                override suspend fun getNames(uids: Set<String>) = fakeUsers.names(uids)
+            }),
             dateProvider = object : DateProvider {
                 override fun today(zoneId: ZoneId): LocalDate = LocalDate.now(zoneId)
-            }
+            },
+            monthRangeCalculator = MonthRangeCalculator()
         )
         // Allow init to run; state should have computed values
         vm.refreshAll(); vm.loadByUser(); vm.loadTodayMeals()

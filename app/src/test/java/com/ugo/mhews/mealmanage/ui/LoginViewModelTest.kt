@@ -3,6 +3,8 @@ package com.ugo.mhews.mealmanage.ui
 import com.ugo.mhews.mealmanage.MainDispatcherRule
 import com.ugo.mhews.mealmanage.domain.Result
 import com.ugo.mhews.mealmanage.domain.repository.AuthRepository
+import com.ugo.mhews.mealmanage.domain.usecase.SignIn
+import com.ugo.mhews.mealmanage.domain.usecase.SignUp
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -21,7 +23,11 @@ class LoginViewModelTest {
 
     @Test
     fun login_success_sets_loggedIn() = runTest {
-        val vm = LoginViewModel(FakeAuth())
+        val fakeAuth = FakeAuth()
+        val vm = LoginViewModel(
+            signIn = SignIn(fakeAuth),
+            signUp = SignUp(fakeAuth)
+        )
         vm.setEmail("a@b.com")
         vm.setPassword("123456")
         vm.submit()
@@ -30,4 +36,3 @@ class LoginViewModelTest {
         assertEquals(true, s.loggedIn)
     }
 }
-
